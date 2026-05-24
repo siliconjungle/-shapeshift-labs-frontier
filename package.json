@@ -1,6 +1,6 @@
 {
   "name": "@shapeshift-labs/frontier",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Fast compact JSON diff and patch primitives for JavaScript values.",
   "type": "module",
   "license": "MIT",

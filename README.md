@@ -59,6 +59,19 @@ applyPatchImmutable(before, diff(before, after)) === after
 
 Use `diffStable()` or `{ stable: true }` when deterministic object-key walk order matters more than raw speed.
 
+## Performance
+
+Frontier core was measured from this package on Node v26.1.0, darwin arm64. Timings are median microseconds per operation across 9 warmed rounds; p95 is shown to make noise visible.
+
+| Fixture | Patch | Bytes | `diff()` median | `diff()` p95 | `applyPatchImmutable()` median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Small object field edit | 1 op | 34 B | 0.41 us | 0.51 us | 0.07 us |
+| 1k keyed rows, one field edit | 1 op | 45 B | 84.39 us | 98.30 us | 0.41 us |
+| 1k keyed rows with dirty path hint | 2 ops | 60 B | 0.46 us | 0.50 us | 0.52 us |
+| 10k text middle insert | 1 op | 29 B | 2.77 us | 2.85 us | 0.09 us |
+
+These numbers are Frontier-only package measurements, not a competitor comparison. Hardware, Node version, and data shape will affect absolute timings.
+
 ## API
 
 ```ts
