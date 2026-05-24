@@ -1,0 +1,70 @@
+{
+  "name": "@shapeshift-labs/frontier",
+  "version": "0.1.1",
+  "description": "Fast compact JSON diff and patch primitives for JavaScript values.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/siliconjungle/-shapeshift-labs-frontier.git"
+  },
+  "homepage": "https://github.com/siliconjungle/-shapeshift-labs-frontier#readme",
+  "bugs": {
+    "url": "https://github.com/siliconjungle/-shapeshift-labs-frontier/issues"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./diff": {
+      "types": "./dist/diff.d.ts",
+      "import": "./dist/diff.js",
+      "default": "./dist/diff.js"
+    },
+    "./patch": {
+      "types": "./dist/patch.d.ts",
+      "import": "./dist/patch.js",
+      "default": "./dist/patch.js"
+    },
+    "./pointer": {
+      "types": "./dist/pointer.d.ts",
+      "import": "./dist/pointer.js",
+      "default": "./dist/pointer.js"
+    },
+    "./equal": {
+      "types": "./dist/equal.d.ts",
+      "import": "./dist/equal.js",
+      "default": "./dist/equal.js"
+    },
+    "./unicode": {
+      "types": "./dist/unicode.d.ts",
+      "import": "./dist/unicode.js",
+      "default": "./dist/unicode.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node test/smoke.mjs"
+  },
+  "keywords": [
+    "json",
+    "diff",
+    "patch",
+    "delta",
+    "rfc6902",
+    "state"
+  ]
+}

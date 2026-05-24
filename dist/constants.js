@@ -1,0 +1,15 @@
+export const OP_SET = 0;
+export const OP_REMOVE = 1;
+export const OP_TRUNCATE = 2;
+export const OP_APPEND = 3;
+export const OP_ASSIGN = 4;
+export const OP_STRING_SPLICE = 5;
+export const OP_ARRAY_SPLICE = 6;
+export const OP_ARRAY_MOVE = 7;
+export const OP_STRING_COPY = 8;
+export const OP_ARRAY_ASSIGN = 9;
+export const OP_ARRAY_OBJECT_ASSIGN = 10;
+export const OP_ARRAY_TUPLE_ASSIGN = 11;
+export const OP_ARRAY_OBJECT_FIELD_ASSIGN = 12;
+export const OP_SCALAR_ARRAY_REPLACE = 13;
+export const OP_ARRAY_TWO_FIELD_INSERT = 14;
