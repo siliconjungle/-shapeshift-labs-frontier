@@ -10,11 +10,40 @@ This package is the small core package. It does not include Frontier CRDTs, sync
 - source: [`siliconjungle/-shapeshift-labs-frontier`](https://github.com/siliconjungle/-shapeshift-labs-frontier)
 - license: MIT
 
+## Related Packages
+
+The published Frontier package family is split so the core diff/apply package stays small:
+
+- [`@shapeshift-labs/frontier-codec`](https://www.npmjs.com/package/@shapeshift-labs/frontier-codec): patch serialization, binary frames, canonical JSON, and patch-history codecs.
+- [`@shapeshift-labs/frontier-engine`](https://www.npmjs.com/package/@shapeshift-labs/frontier-engine): planned diff engine, adaptive profiles, and reusable schema/history planning.
+- [`@shapeshift-labs/frontier-query`](https://www.npmjs.com/package/@shapeshift-labs/frontier-query): shared query-key, selector path, condition, identity, and table-schema primitives.
+- [`@shapeshift-labs/frontier-mutation`](https://www.npmjs.com/package/@shapeshift-labs/frontier-mutation): explicit mutation and selector plans compiled to Frontier patches or CRDT operations.
+
+Published source repositories:
+
+- [`siliconjungle/-shapeshift-labs-frontier-codec`](https://github.com/siliconjungle/-shapeshift-labs-frontier-codec)
+- [`siliconjungle/-shapeshift-labs-frontier-engine`](https://github.com/siliconjungle/-shapeshift-labs-frontier-engine)
+- [`siliconjungle/-shapeshift-labs-frontier-query`](https://github.com/siliconjungle/-shapeshift-labs-frontier-query)
+- [`siliconjungle/-shapeshift-labs-frontier-mutation`](https://github.com/siliconjungle/-shapeshift-labs-frontier-mutation)
+
+Reserved package names for future layers are kept separate from this core package:
+
+- `@shapeshift-labs/frontier-state`
+- `@shapeshift-labs/frontier-crdt`
+- `@shapeshift-labs/frontier-crdt-sync`
+- `@shapeshift-labs/frontier-richtext`
+- `@shapeshift-labs/frontier-logging`
+- `@shapeshift-labs/frontier-state-cache`
+- `@shapeshift-labs/frontier-event-log`
+- `@shapeshift-labs/frontier-schema`
+
 ## Install
 
 ```sh
 npm install @shapeshift-labs/frontier
 ```
+
+## Usage
 
 ```ts
 import { applyPatchImmutable, diff } from '@shapeshift-labs/frontier';
@@ -42,44 +71,6 @@ const next = applyPatchImmutable(before, patch);
 console.log(next);
 ```
 
-## Why Frontier Patches Are Compact
-
-Frontier's patch format uses numeric tuple opcodes instead of verbose JSON Patch objects. It can represent common state changes directly:
-
-- `OP_SET` for replacing a value.
-- `OP_REMOVE` for deleting an object field or array item.
-- `OP_APPEND` and `OP_ARRAY_SPLICE` for array edits.
-- `OP_STRING_SPLICE` and `OP_STRING_COPY` for localized text changes.
-- `OP_ARRAY_MOVE` for keyed row movement.
-- `OP_ASSIGN`, `OP_ARRAY_OBJECT_ASSIGN`, and tuple/field assign ops for batches of related updates.
-
-The normal invariant is:
-
-```ts
-applyPatchImmutable(before, diff(before, after)) === after
-```
-
-Use `diffStable()` or `{ stable: true }` when deterministic object-key walk order matters more than raw speed.
-
-## Benchmarks
-
-Run the package-local benchmark:
-
-```sh
-npm run bench
-```
-
-Frontier core was measured from this package on Node v26.1.0, darwin arm64. Timings are median microseconds per operation across 3 package-gate rounds; p95 is shown to make noise visible.
-
-| Fixture | Patch | Bytes | `diff()` median | `diff()` p95 | `applyPatchImmutable()` median |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Small object field edit | 1 op | 26 B | 0.58 us | 0.73 us | 0.11 us |
-| 1k keyed rows, one field edit | 1 op | 31 B | 274.62 us | 281.36 us | 0.37 us |
-| 1k keyed rows with dirty path hint | 2 ops | 66 B | 0.69 us | 0.71 us | 0.46 us |
-| 10k text middle insert | 1 op | 32 B | 2.98 us | 3.37 us | 0.12 us |
-
-These numbers are Frontier-only package measurements, not a competitor comparison. Hardware, Node version, and data shape will affect absolute timings.
-
 ## API
 
 ```ts
@@ -99,49 +90,6 @@ import {
   parsePointer,
   stringifyPointer
 } from '@shapeshift-labs/frontier';
-```
-
-## TypeScript
-
-Frontier ships first-party TypeScript declarations for the root package and every core subpath. The runtime package is plain ESM JavaScript, and the types are included in `dist/*.d.ts`.
-
-```ts
-import { diff, applyPatchImmutable, type DiffOptions, type JsonValue, type Patch } from '@shapeshift-labs/frontier';
-import type { JsonPath, PatchOperation } from '@shapeshift-labs/frontier/types';
-
-const options: DiffOptions = { arrayKey: 'id' };
-const patch: Patch = diff(before as JsonValue, after as JsonValue, options);
-const next = applyPatchImmutable(before as JsonValue, patch);
-```
-
-Subpath declarations are also exported:
-
-```ts
-import { diff } from '@shapeshift-labs/frontier/diff';
-import { applyPatchImmutable, type Patch } from '@shapeshift-labs/frontier/patch';
-```
-
-The package includes `exports.types`, a `./types` subpath, and `typesVersions` mappings for TypeScript projects that still use older Node-style package resolution.
-
-## Testing
-
-The standalone package repository includes package-level tests that run against the built JavaScript distribution:
-
-```sh
-npm test
-```
-
-That command runs:
-
-- TypeScript consumer checks against the published declarations.
-- Smoke tests for root and subpath imports.
-- Deterministic core diff/apply API tests.
-- A seedable diff/apply fuzzer covering nested JSON objects, arrays, strings, scalars, stable diffing, patch validation, mutable apply, immutable apply, and normalized patch replay.
-
-The fuzzer can be run directly:
-
-```sh
-node test/diff-fuzz.mjs --cases 5000 --seed 1234
 ```
 
 ### `diff(before, after, options?)`
@@ -197,16 +145,24 @@ const copy = cloneJson(value);
 const same = equalsJsonFast(copy, value);
 ```
 
-## Subpath Imports
+## Why Frontier Patches Are Compact
 
-Use subpaths when you want a narrower import surface:
+Frontier's patch format uses numeric tuple opcodes instead of verbose JSON Patch objects. It can represent common state changes directly:
+
+- `OP_SET` for replacing a value.
+- `OP_REMOVE` for deleting an object field or array item.
+- `OP_APPEND` and `OP_ARRAY_SPLICE` for array edits.
+- `OP_STRING_SPLICE` and `OP_STRING_COPY` for localized text changes.
+- `OP_ARRAY_MOVE` for keyed row movement.
+- `OP_ASSIGN`, `OP_ARRAY_OBJECT_ASSIGN`, and tuple/field assign ops for batches of related updates.
+
+The normal invariant is:
 
 ```ts
-import { diff } from '@shapeshift-labs/frontier/diff';
-import { applyPatchImmutable } from '@shapeshift-labs/frontier/patch';
-import { parsePointer } from '@shapeshift-labs/frontier/pointer';
-import { equalsJsonFast } from '@shapeshift-labs/frontier/equal';
+applyPatchImmutable(before, diff(before, after)) === after
 ```
+
+Use `diffStable()` or `{ stable: true }` when deterministic object-key walk order matters more than raw speed.
 
 ## Patch Format
 
@@ -220,32 +176,16 @@ const patch: Patch = [[OP_SET, ['status'], 'done']];
 
 The tuple format is optimized for in-memory replay and for compact transport once a codec is added above this core package.
 
-## Companion Packages
+## Subpath Imports
 
-The published Frontier package family is split so the core diff/apply package stays small:
+Use subpaths when you want a narrower import surface:
 
-- [`@shapeshift-labs/frontier-codec`](https://www.npmjs.com/package/@shapeshift-labs/frontier-codec): patch serialization, binary frames, canonical JSON, and patch-history codecs.
-- [`@shapeshift-labs/frontier-engine`](https://www.npmjs.com/package/@shapeshift-labs/frontier-engine): planned diff engine, adaptive profiles, and reusable schema/history planning.
-- [`@shapeshift-labs/frontier-query`](https://www.npmjs.com/package/@shapeshift-labs/frontier-query): shared query-key, selector path, condition, identity, and table-schema primitives.
-- [`@shapeshift-labs/frontier-mutation`](https://www.npmjs.com/package/@shapeshift-labs/frontier-mutation): explicit mutation and selector plans compiled to Frontier patches or CRDT operations.
-
-Published source repositories:
-
-- [`siliconjungle/-shapeshift-labs-frontier-codec`](https://github.com/siliconjungle/-shapeshift-labs-frontier-codec)
-- [`siliconjungle/-shapeshift-labs-frontier-engine`](https://github.com/siliconjungle/-shapeshift-labs-frontier-engine)
-- [`siliconjungle/-shapeshift-labs-frontier-query`](https://github.com/siliconjungle/-shapeshift-labs-frontier-query)
-- [`siliconjungle/-shapeshift-labs-frontier-mutation`](https://github.com/siliconjungle/-shapeshift-labs-frontier-mutation)
-
-Reserved package names for future layers are kept separate from this core package:
-
-- `@shapeshift-labs/frontier-state`
-- `@shapeshift-labs/frontier-crdt`
-- `@shapeshift-labs/frontier-crdt-sync`
-- `@shapeshift-labs/frontier-richtext`
-- `@shapeshift-labs/frontier-logging`
-- `@shapeshift-labs/frontier-state-cache`
-- `@shapeshift-labs/frontier-event-log`
-- `@shapeshift-labs/frontier-schema`
+```ts
+import { diff } from '@shapeshift-labs/frontier/diff';
+import { applyPatchImmutable } from '@shapeshift-labs/frontier/patch';
+import { parsePointer } from '@shapeshift-labs/frontier/pointer';
+import { equalsJsonFast } from '@shapeshift-labs/frontier/equal';
+```
 
 ## Package Scope
 
@@ -259,6 +199,71 @@ This package is intentionally limited to:
 - Unicode string utilities used by the diff core.
 
 Codec, mutation, state, CRDT, sync, logging, rich text, and package-specific tooling belong in companion packages or explicit subpaths. The core package stays focused on JSON diff/apply primitives and has no runtime dependencies.
+
+## TypeScript
+
+Frontier ships first-party TypeScript declarations for the root package and every core subpath. The runtime package is plain ESM JavaScript, and the types are included in `dist/*.d.ts`.
+
+```ts
+import { diff, applyPatchImmutable, type DiffOptions, type JsonValue, type Patch } from '@shapeshift-labs/frontier';
+import type { JsonPath, PatchOperation } from '@shapeshift-labs/frontier/types';
+
+const options: DiffOptions = { arrayKey: 'id' };
+const patch: Patch = diff(before as JsonValue, after as JsonValue, options);
+const next = applyPatchImmutable(before as JsonValue, patch);
+```
+
+Subpath declarations are also exported:
+
+```ts
+import { diff } from '@shapeshift-labs/frontier/diff';
+import { applyPatchImmutable, type Patch } from '@shapeshift-labs/frontier/patch';
+```
+
+The package includes `exports.types`, a `./types` subpath, and `typesVersions` mappings for TypeScript projects that still use older Node-style package resolution.
+
+## Validation
+
+The standalone package repository includes package-level tests that run against the built JavaScript distribution:
+
+```sh
+npm test
+npm run fuzz
+npm run bench
+npm run pack:dry
+```
+
+The test suite covers:
+
+- TypeScript consumer checks against the published declarations.
+- Smoke tests for root and subpath imports.
+- Deterministic core diff/apply API tests.
+- A seedable diff/apply fuzzer covering nested JSON objects, arrays, strings, scalars, stable diffing, patch validation, mutable apply, immutable apply, and normalized patch replay.
+
+The fuzzer can be run directly:
+
+```sh
+node test/diff-fuzz.mjs --cases 5000 --seed 1234
+```
+
+## Benchmarks
+
+Run the package-local benchmark:
+
+```sh
+npm run bench
+```
+
+Latest local package benchmark on Node v26.1.0, darwin arm64, 3 rounds. Timings are median microseconds per operation; p95 is shown to make noise visible.
+
+| Fixture | Patch | Bytes | `diff()` median | `diff()` p95 | `applyPatchImmutable()` median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Small object field edit | 1 op | 26 B | 0.59 us | 0.72 us | 0.11 us |
+| 1k keyed rows, one field edit | 1 op | 31 B | 274.58 us | 277.91 us | 0.37 us |
+| 1k keyed rows with dirty path hint | 2 ops | 66 B | 0.68 us | 0.72 us | 0.51 us |
+| 10k text middle insert | 1 op | 32 B | 3.08 us | 3.08 us | 0.12 us |
+
+These numbers are Frontier-only package measurements, not a competitor comparison. Hardware, Node version, and data shape will affect absolute timings.
 
 ## License
 
