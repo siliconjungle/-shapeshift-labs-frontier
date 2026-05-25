@@ -6,7 +6,9 @@ Frontier compares JSON-shaped data and emits a replayable compact patch. It is b
 
 This package is the small core package. It does not include Frontier CRDTs, sync, state subscriptions, binary codecs, logging, or rich text.
 
-Repository: [siliconjungle/-shapeshift-labs-frontier](https://github.com/siliconjungle/-shapeshift-labs-frontier)
+- npm: [`@shapeshift-labs/frontier`](https://www.npmjs.com/package/@shapeshift-labs/frontier)
+- source: [`siliconjungle/-shapeshift-labs-frontier`](https://github.com/siliconjungle/-shapeshift-labs-frontier)
+- license: MIT
 
 ## Install
 
@@ -212,6 +214,25 @@ const patch: Patch = [[OP_SET, ['status'], 'done']];
 
 The tuple format is optimized for in-memory replay and for compact transport once a codec is added above this core package.
 
+## Companion Packages
+
+The published Frontier package family is split so the core diff/apply package stays small:
+
+- [`@shapeshift-labs/frontier-codec`](https://www.npmjs.com/package/@shapeshift-labs/frontier-codec): patch serialization, binary frames, canonical JSON, and patch-history codecs.
+- [`@shapeshift-labs/frontier-mutation`](https://www.npmjs.com/package/@shapeshift-labs/frontier-mutation): explicit mutation and selector plans compiled to Frontier patches or CRDT operations.
+
+Reserved package names for future layers are kept separate from this core package:
+
+- `@shapeshift-labs/frontier-engine`
+- `@shapeshift-labs/frontier-state`
+- `@shapeshift-labs/frontier-crdt`
+- `@shapeshift-labs/frontier-crdt-sync`
+- `@shapeshift-labs/frontier-richtext`
+- `@shapeshift-labs/frontier-logging`
+- `@shapeshift-labs/frontier-state-cache`
+- `@shapeshift-labs/frontier-event-log`
+- `@shapeshift-labs/frontier-schema`
+
 ## Package Scope
 
 This package is intentionally limited to:
@@ -223,15 +244,7 @@ This package is intentionally limited to:
 - JSON clone/equality/validation helpers.
 - Unicode string utilities used by the diff core.
 
-Future package-family layers are separate by design:
-
-- `@shapeshift-labs/frontier-codec`
-- `@shapeshift-labs/frontier-state`
-- `@shapeshift-labs/frontier-crdt`
-- `@shapeshift-labs/frontier-crdt-sync`
-- `@shapeshift-labs/frontier-richtext`
-
-Those packages are reserved but should be treated separately from this core package.
+Codec, mutation, state, CRDT, sync, logging, rich text, and package-specific tooling belong in companion packages or explicit subpaths. The core package has no runtime dependencies.
 
 ## License
 
