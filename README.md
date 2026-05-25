@@ -73,10 +73,10 @@ Frontier core was measured from this package on Node v26.1.0, darwin arm64. Timi
 
 | Fixture | Patch | Bytes | `diff()` median | `diff()` p95 | `applyPatchImmutable()` median |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Small object field edit | 1 op | 26 B | 0.61 us | 0.69 us | 0.11 us |
-| 1k keyed rows, one field edit | 1 op | 31 B | 271.37 us | 278.70 us | 0.37 us |
-| 1k keyed rows with dirty path hint | 2 ops | 66 B | 0.69 us | 0.75 us | 0.48 us |
-| 10k text middle insert | 1 op | 32 B | 2.98 us | 3.06 us | 0.12 us |
+| Small object field edit | 1 op | 26 B | 0.58 us | 0.73 us | 0.11 us |
+| 1k keyed rows, one field edit | 1 op | 31 B | 274.62 us | 281.36 us | 0.37 us |
+| 1k keyed rows with dirty path hint | 2 ops | 66 B | 0.69 us | 0.71 us | 0.46 us |
+| 10k text middle insert | 1 op | 32 B | 2.98 us | 3.37 us | 0.12 us |
 
 These numbers are Frontier-only package measurements, not a competitor comparison. Hardware, Node version, and data shape will affect absolute timings.
 
@@ -225,18 +225,19 @@ The tuple format is optimized for in-memory replay and for compact transport onc
 The published Frontier package family is split so the core diff/apply package stays small:
 
 - [`@shapeshift-labs/frontier-codec`](https://www.npmjs.com/package/@shapeshift-labs/frontier-codec): patch serialization, binary frames, canonical JSON, and patch-history codecs.
+- [`@shapeshift-labs/frontier-engine`](https://www.npmjs.com/package/@shapeshift-labs/frontier-engine): planned diff engine, adaptive profiles, and reusable schema/history planning.
 - [`@shapeshift-labs/frontier-query`](https://www.npmjs.com/package/@shapeshift-labs/frontier-query): shared query-key, selector path, condition, identity, and table-schema primitives.
 - [`@shapeshift-labs/frontier-mutation`](https://www.npmjs.com/package/@shapeshift-labs/frontier-mutation): explicit mutation and selector plans compiled to Frontier patches or CRDT operations.
 
 Published source repositories:
 
 - [`siliconjungle/-shapeshift-labs-frontier-codec`](https://github.com/siliconjungle/-shapeshift-labs-frontier-codec)
+- [`siliconjungle/-shapeshift-labs-frontier-engine`](https://github.com/siliconjungle/-shapeshift-labs-frontier-engine)
 - [`siliconjungle/-shapeshift-labs-frontier-query`](https://github.com/siliconjungle/-shapeshift-labs-frontier-query)
 - [`siliconjungle/-shapeshift-labs-frontier-mutation`](https://github.com/siliconjungle/-shapeshift-labs-frontier-mutation)
 
 Reserved package names for future layers are kept separate from this core package:
 
-- `@shapeshift-labs/frontier-engine`
 - `@shapeshift-labs/frontier-state`
 - `@shapeshift-labs/frontier-crdt`
 - `@shapeshift-labs/frontier-crdt-sync`
