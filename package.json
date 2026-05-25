@@ -112,9 +112,9 @@
   },
   "files": [
     "dist",
-    "benchmarks/package-bench.mjs",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "benchmarks/package-bench.mjs"
   ],
   "engines": {
     "node": ">=18"
@@ -122,9 +122,11 @@
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc -p test/tsconfig.json",
-    "bench": "npm run build && node benchmarks/package-bench.mjs",
     "test": "npm run build && npm run typecheck && node test/smoke.mjs && node test/diff-core.mjs && node test/diff-fuzz.mjs --cases 1000",
-    "prepack": "npm run test"
+    "fuzz": "npm run build && node test/diff-fuzz.mjs --cases 1000",
+    "prepack": "npm run test",
+    "bench": "npm run build && node benchmarks/package-bench.mjs",
+    "pack:dry": "npm pack --dry-run"
   },
   "keywords": [
     "json",

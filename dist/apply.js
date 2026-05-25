@@ -2272,3 +2272,4 @@ function samePathPrefix(left, right, length) {
     }
     return true;
 }
+//# sourceMappingURL=apply.js.map

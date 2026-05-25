@@ -10,3 +10,4 @@ export { equalsJson, equalsJsonFast } from './equal.js';
 export { assertJsonValue } from './validate.js';
 export { hasUnpairedSurrogate, hasUnicodeNoncharacter, isWellFormedString, toWellFormedString, normalizeString, normalizeJsonStrings, segmentString, stringLength, codeUnitOffsetToSegmentIndex, segmentIndexToCodeUnitOffset } from './unicode.js';
 export type { ApplyOptions, ArrayKeyGetter, CacheToken, DiffOptions, DirtyRowsFrontier, JsonArray, JsonObject, JsonPatch, JsonPatchOperation, JsonPath, JsonPrimitive, JsonRecord, JsonValidationOptions, JsonValue, KeyCompare, NormalizeOptions, ObjectKey, Patch, PatchOperation, PathSegment, TextLengthUnit, TextSegment, TextSegmentGranularity, TextSegmentationOptions, Token, TokenGetter, UnicodeNormalizationForm } from './types.js';
+//# sourceMappingURL=index.d.ts.map

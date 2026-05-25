@@ -211,3 +211,4 @@ function encodePointerSegment(segment) {
     }
     return start === 0 ? segment : out + segment.slice(start);
 }
+//# sourceMappingURL=pointer.js.map

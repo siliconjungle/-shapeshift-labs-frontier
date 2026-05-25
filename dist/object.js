@@ -10,3 +10,4 @@ export function setOwnValue(object, key, value) {
     }
     object[key] = value;
 }
+//# sourceMappingURL=object.js.map

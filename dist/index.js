@@ -11,3 +11,4 @@ export { cloneJson } from './clone.js';
 export { equalsJson, equalsJsonFast } from './equal.js';
 export { assertJsonValue } from './validate.js';
 export { hasUnpairedSurrogate, hasUnicodeNoncharacter, isWellFormedString, toWellFormedString, normalizeString, normalizeJsonStrings, segmentString, stringLength, codeUnitOffsetToSegmentIndex, segmentIndexToCodeUnitOffset } from './unicode.js';
+//# sourceMappingURL=index.js.map

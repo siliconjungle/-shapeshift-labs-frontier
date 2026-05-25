@@ -500,3 +500,4 @@ function samePathPrefix(left, right, length) {
     }
     return true;
 }
+//# sourceMappingURL=json-patch.js.map

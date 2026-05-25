@@ -7,3 +7,4 @@ export declare function findPointerParent(value: JsonValue, pointer: string): [J
 export declare function getCachedPointerPath(pointer: string): JsonPath;
 export declare function decodePointerSegment(pointer: string, start: number, end: number): string;
 export declare function readArrayIndex(key: string | number, length: number, allowAppend: boolean): number;
+//# sourceMappingURL=pointer.d.ts.map

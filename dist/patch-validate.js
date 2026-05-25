@@ -236,3 +236,4 @@ function isPrimitiveJsonScalar(value) {
     const type = typeof value;
     return value === null || type === 'string' || type === 'number' || type === 'boolean';
 }
+//# sourceMappingURL=patch-validate.js.map

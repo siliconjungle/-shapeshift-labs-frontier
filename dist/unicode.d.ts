@@ -9,3 +9,4 @@ export declare function segmentString(value: string, options?: TextSegmentationO
 export declare function stringLength(value: string, unit?: TextLengthUnit): number;
 export declare function codeUnitOffsetToSegmentIndex(value: string, offset: number, options?: TextSegmentationOptions): number;
 export declare function segmentIndexToCodeUnitOffset(value: string, index: number, options?: TextSegmentationOptions): number;
+//# sourceMappingURL=unicode.d.ts.map

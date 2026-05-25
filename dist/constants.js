@@ -13,3 +13,4 @@ export const OP_ARRAY_TUPLE_ASSIGN = 11;
 export const OP_ARRAY_OBJECT_FIELD_ASSIGN = 12;
 export const OP_SCALAR_ARRAY_REPLACE = 13;
 export const OP_ARRAY_TWO_FIELD_INSERT = 14;
+//# sourceMappingURL=constants.js.map

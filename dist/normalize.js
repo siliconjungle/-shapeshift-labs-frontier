@@ -690,3 +690,4 @@ function samePath(left, right, length) {
     }
     return true;
 }
+//# sourceMappingURL=normalize.js.map

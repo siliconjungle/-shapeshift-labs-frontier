@@ -61,24 +61,24 @@ applyPatchImmutable(before, diff(before, after)) === after
 
 Use `diffStable()` or `{ stable: true }` when deterministic object-key walk order matters more than raw speed.
 
-## Performance
+## Benchmarks
 
-Frontier core was measured from this package with `npm run bench` on Node v26.1.0, darwin arm64. Timings are median microseconds per operation across 9 warmed rounds; p95 is shown to make noise visible.
-
-| Fixture | Patch | Bytes | `diff()` median | `diff()` p95 | `applyPatchImmutable()` median |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Small object field edit | 1 op | 26 B | 0.70 us | 0.83 us | 0.10 us |
-| 1k keyed rows, one field edit | 1 op | 31 B | 321.43 us | 376.29 us | 0.35 us |
-| 1k keyed rows with dirty path hint | 2 ops | 66 B | 0.63 us | 0.73 us | 0.39 us |
-| 10k text middle insert | 1 op | 32 B | 3.12 us | 3.28 us | 0.10 us |
-
-These numbers are Frontier-only package measurements, not a competitor comparison. Hardware, Node version, and data shape will affect absolute timings.
-
-Reproduce the package-local benchmark with:
+Run the package-local benchmark:
 
 ```sh
 npm run bench
 ```
+
+Frontier core was measured from this package on Node v26.1.0, darwin arm64. Timings are median microseconds per operation across 3 package-gate rounds; p95 is shown to make noise visible.
+
+| Fixture | Patch | Bytes | `diff()` median | `diff()` p95 | `applyPatchImmutable()` median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Small object field edit | 1 op | 26 B | 0.61 us | 0.69 us | 0.11 us |
+| 1k keyed rows, one field edit | 1 op | 31 B | 271.37 us | 278.70 us | 0.37 us |
+| 1k keyed rows with dirty path hint | 2 ops | 66 B | 0.69 us | 0.75 us | 0.48 us |
+| 10k text middle insert | 1 op | 32 B | 2.98 us | 3.06 us | 0.12 us |
+
+These numbers are Frontier-only package measurements, not a competitor comparison. Hardware, Node version, and data shape will affect absolute timings.
 
 ## API
 
@@ -225,7 +225,14 @@ The tuple format is optimized for in-memory replay and for compact transport onc
 The published Frontier package family is split so the core diff/apply package stays small:
 
 - [`@shapeshift-labs/frontier-codec`](https://www.npmjs.com/package/@shapeshift-labs/frontier-codec): patch serialization, binary frames, canonical JSON, and patch-history codecs.
+- [`@shapeshift-labs/frontier-query`](https://www.npmjs.com/package/@shapeshift-labs/frontier-query): shared query-key, selector path, condition, identity, and table-schema primitives.
 - [`@shapeshift-labs/frontier-mutation`](https://www.npmjs.com/package/@shapeshift-labs/frontier-mutation): explicit mutation and selector plans compiled to Frontier patches or CRDT operations.
+
+Published source repositories:
+
+- [`siliconjungle/-shapeshift-labs-frontier-codec`](https://github.com/siliconjungle/-shapeshift-labs-frontier-codec)
+- [`siliconjungle/-shapeshift-labs-frontier-query`](https://github.com/siliconjungle/-shapeshift-labs-frontier-query)
+- [`siliconjungle/-shapeshift-labs-frontier-mutation`](https://github.com/siliconjungle/-shapeshift-labs-frontier-mutation)
 
 Reserved package names for future layers are kept separate from this core package:
 
@@ -250,7 +257,7 @@ This package is intentionally limited to:
 - JSON clone/equality/validation helpers.
 - Unicode string utilities used by the diff core.
 
-Codec, mutation, state, CRDT, sync, logging, rich text, and package-specific tooling belong in companion packages or explicit subpaths. The core package has no runtime dependencies.
+Codec, mutation, state, CRDT, sync, logging, rich text, and package-specific tooling belong in companion packages or explicit subpaths. The core package stays focused on JSON diff/apply primitives and has no runtime dependencies.
 
 ## License
 

@@ -200,3 +200,4 @@ function cloneValueWithPlan(value, plan) {
     const cloned = cloneObjectWithPlan(value, plan);
     return cloned === null ? MISSING_SHAPE_CLONE_VALUE : cloned;
 }
+//# sourceMappingURL=clone.js.map

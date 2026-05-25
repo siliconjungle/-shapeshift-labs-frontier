@@ -321,3 +321,4 @@ function isUnicodeNoncharacter(codePoint) {
     return ((codePoint >= 0xfdd0 && codePoint <= 0xfdef) ||
         (codePoint <= 0x10ffff && (codePoint & 0xfffe) === 0xfffe));
 }
+//# sourceMappingURL=unicode.js.map
