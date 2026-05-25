@@ -4,7 +4,7 @@ Fast compact JSON diff and patch primitives for JavaScript values.
 
 Frontier compares JSON-shaped data and emits a replayable compact patch. It is built for application state, cached API results, editor models, game state, compiler data, and other in-memory JSON values where the useful output is not just "different", but "what compact operations reproduce the new value?".
 
-This package is the small core package. It does not include Frontier CRDTs, sync, state subscriptions, binary codecs, logging, or rich text.
+This package is the small core package. It has no runtime dependencies and does not include Frontier query helpers, codecs, engine planning, state subscriptions, caches, schema helpers, logging, mutation planning, CRDTs, sync, or rich text.
 
 - npm: [`@shapeshift-labs/frontier`](https://www.npmjs.com/package/@shapeshift-labs/frontier)
 - source: [`siliconjungle/-shapeshift-labs-frontier`](https://github.com/siliconjungle/-shapeshift-labs-frontier)
@@ -14,28 +14,38 @@ This package is the small core package. It does not include Frontier CRDTs, sync
 
 The published Frontier package family is split so the core diff/apply package stays small:
 
+- [`@shapeshift-labs/frontier-query`](https://www.npmjs.com/package/@shapeshift-labs/frontier-query): shared query-key, selector path, condition, identity, and table-schema primitives.
 - [`@shapeshift-labs/frontier-codec`](https://www.npmjs.com/package/@shapeshift-labs/frontier-codec): patch serialization, binary frames, canonical JSON, and patch-history codecs.
 - [`@shapeshift-labs/frontier-engine`](https://www.npmjs.com/package/@shapeshift-labs/frontier-engine): planned diff engine, adaptive profiles, and reusable schema/history planning.
-- [`@shapeshift-labs/frontier-query`](https://www.npmjs.com/package/@shapeshift-labs/frontier-query): shared query-key, selector path, condition, identity, and table-schema primitives.
+- [`@shapeshift-labs/frontier-state`](https://www.npmjs.com/package/@shapeshift-labs/frontier-state): patch-routed app-state subscriptions, owned commits, maintained views, and path mapping.
+- [`@shapeshift-labs/frontier-state-cache`](https://www.npmjs.com/package/@shapeshift-labs/frontier-state-cache): normalized query-result cache with persistence, change logs, optimistic layers, and mutation bridge helpers.
+- [`@shapeshift-labs/frontier-schema`](https://www.npmjs.com/package/@shapeshift-labs/frontier-schema): JSON Schema validation, Frontier profile generation, CloudEvent envelopes, and table-schema helpers.
+- [`@shapeshift-labs/frontier-event-log`](https://www.npmjs.com/package/@shapeshift-labs/frontier-event-log): bounded event logs, replay cursors, consumer acknowledgements, keyed compaction, and Frontier patch events.
+- [`@shapeshift-labs/frontier-logging`](https://www.npmjs.com/package/@shapeshift-labs/frontier-logging): opt-in structured logging, telemetry buffers, exporters, and Frontier patch summaries.
+- [`@shapeshift-labs/frontier-crdt`](https://www.npmjs.com/package/@shapeshift-labs/frontier-crdt): native CRDT documents, updates, awareness, branches, conflicts, and undo.
+- [`@shapeshift-labs/frontier-crdt-sync`](https://www.npmjs.com/package/@shapeshift-labs/frontier-crdt-sync): sync endpoints, repo/storage/provider contracts, document URLs, local networks, model checks, and text bindings.
+- [`@shapeshift-labs/frontier-crdt-websocket`](https://www.npmjs.com/package/@shapeshift-labs/frontier-crdt-websocket): WebSocket client/server transport for Frontier CRDT sync providers.
 - [`@shapeshift-labs/frontier-mutation`](https://www.npmjs.com/package/@shapeshift-labs/frontier-mutation): explicit mutation and selector plans compiled to Frontier patches or CRDT operations.
 
 Published source repositories:
 
+- [`siliconjungle/-shapeshift-labs-frontier`](https://github.com/siliconjungle/-shapeshift-labs-frontier)
+- [`siliconjungle/-shapeshift-labs-frontier-query`](https://github.com/siliconjungle/-shapeshift-labs-frontier-query)
 - [`siliconjungle/-shapeshift-labs-frontier-codec`](https://github.com/siliconjungle/-shapeshift-labs-frontier-codec)
 - [`siliconjungle/-shapeshift-labs-frontier-engine`](https://github.com/siliconjungle/-shapeshift-labs-frontier-engine)
-- [`siliconjungle/-shapeshift-labs-frontier-query`](https://github.com/siliconjungle/-shapeshift-labs-frontier-query)
+- [`siliconjungle/-shapeshift-labs-frontier-state`](https://github.com/siliconjungle/-shapeshift-labs-frontier-state)
+- [`siliconjungle/-shapeshift-labs-frontier-state-cache`](https://github.com/siliconjungle/-shapeshift-labs-frontier-state-cache)
+- [`siliconjungle/-shapeshift-labs-frontier-schema`](https://github.com/siliconjungle/-shapeshift-labs-frontier-schema)
+- [`siliconjungle/-shapeshift-labs-frontier-event-log`](https://github.com/siliconjungle/-shapeshift-labs-frontier-event-log)
+- [`siliconjungle/-shapeshift-labs-frontier-logging`](https://github.com/siliconjungle/-shapeshift-labs-frontier-logging)
+- [`siliconjungle/-shapeshift-labs-frontier-crdt`](https://github.com/siliconjungle/-shapeshift-labs-frontier-crdt)
+- [`siliconjungle/-shapeshift-labs-frontier-crdt-sync`](https://github.com/siliconjungle/-shapeshift-labs-frontier-crdt-sync)
+- [`siliconjungle/-shapeshift-labs-frontier-crdt-websocket`](https://github.com/siliconjungle/-shapeshift-labs-frontier-crdt-websocket)
 - [`siliconjungle/-shapeshift-labs-frontier-mutation`](https://github.com/siliconjungle/-shapeshift-labs-frontier-mutation)
 
-Reserved package names for future layers are kept separate from this core package:
+Reserved future package names are also kept separate from this core package:
 
-- `@shapeshift-labs/frontier-state`
-- `@shapeshift-labs/frontier-crdt`
-- `@shapeshift-labs/frontier-crdt-sync`
 - `@shapeshift-labs/frontier-richtext`
-- `@shapeshift-labs/frontier-logging`
-- `@shapeshift-labs/frontier-state-cache`
-- `@shapeshift-labs/frontier-event-log`
-- `@shapeshift-labs/frontier-schema`
 
 ## Install
 
@@ -198,7 +208,7 @@ This package is intentionally limited to:
 - JSON clone/equality/validation helpers.
 - Unicode string utilities used by the diff core.
 
-Codec, mutation, state, CRDT, sync, logging, rich text, and package-specific tooling belong in companion packages or explicit subpaths. The core package stays focused on JSON diff/apply primitives and has no runtime dependencies.
+Query helpers, codecs, engine planning, state, state-cache, schema, event logs, logging, mutation, CRDT, sync, rich text, and package-specific tooling belong in companion packages. The core package stays focused on JSON diff/apply primitives and has no runtime dependencies.
 
 ## TypeScript
 
@@ -254,14 +264,14 @@ Run the package-local benchmark:
 npm run bench
 ```
 
-Latest local package benchmark on Node v26.1.0, darwin arm64, 3 rounds. Timings are median microseconds per operation; p95 is shown to make noise visible.
+Latest local package benchmark on Node v26.1.0, darwin arm64, 5 rounds. Timings are median microseconds per operation; p95 is shown to make noise visible.
 
 | Fixture | Patch | Bytes | `diff()` median | `diff()` p95 | `applyPatchImmutable()` median |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Small object field edit | 1 op | 26 B | 0.59 us | 0.72 us | 0.11 us |
-| 1k keyed rows, one field edit | 1 op | 31 B | 274.58 us | 277.91 us | 0.37 us |
-| 1k keyed rows with dirty path hint | 2 ops | 66 B | 0.68 us | 0.72 us | 0.51 us |
-| 10k text middle insert | 1 op | 32 B | 3.08 us | 3.08 us | 0.12 us |
+| Small object field edit | 1 op | 26 B | 0.62 us | 1.11 us | 0.15 us |
+| 1k keyed rows, one field edit | 1 op | 31 B | 332.06 us | 354.43 us | 0.42 us |
+| 1k keyed rows with dirty path hint | 2 ops | 66 B | 0.81 us | 0.90 us | 0.61 us |
+| 10k text middle insert | 1 op | 32 B | 3.41 us | 3.48 us | 0.12 us |
 
 These numbers are Frontier-only package measurements, not a competitor comparison. Hardware, Node version, and data shape will affect absolute timings.
 
