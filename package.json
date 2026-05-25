@@ -1,6 +1,6 @@
 {
   "name": "@shapeshift-labs/frontier",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Fast compact JSON diff and patch primitives for JavaScript values.",
   "type": "module",
   "license": "MIT",
@@ -112,6 +112,7 @@
   },
   "files": [
     "dist",
+    "benchmarks/package-bench.mjs",
     "README.md",
     "LICENSE"
   ],
@@ -121,6 +122,7 @@
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc -p test/tsconfig.json",
+    "bench": "npm run build && node benchmarks/package-bench.mjs",
     "test": "npm run build && npm run typecheck && node test/smoke.mjs && node test/diff-core.mjs && node test/diff-fuzz.mjs --cases 1000",
     "prepack": "npm run test"
   },
