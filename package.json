@@ -1,6 +1,6 @@
 {
   "name": "@shapeshift-labs/frontier",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Fast compact JSON diff and patch primitives for JavaScript values.",
   "type": "module",
   "license": "MIT",
@@ -26,6 +26,21 @@
       "import": "./dist/diff.js",
       "default": "./dist/diff.js"
     },
+    "./apply": {
+      "types": "./dist/apply.d.ts",
+      "import": "./dist/apply.js",
+      "default": "./dist/apply.js"
+    },
+    "./clone": {
+      "types": "./dist/clone.d.ts",
+      "import": "./dist/clone.js",
+      "default": "./dist/clone.js"
+    },
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "import": "./dist/constants.js",
+      "default": "./dist/constants.js"
+    },
     "./patch": {
       "types": "./dist/patch.d.ts",
       "import": "./dist/patch.js",
@@ -46,7 +61,54 @@
       "import": "./dist/unicode.js",
       "default": "./dist/unicode.js"
     },
+    "./validate": {
+      "types": "./dist/validate.d.ts",
+      "import": "./dist/validate.js",
+      "default": "./dist/validate.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    },
     "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "diff": [
+        "./dist/diff.d.ts"
+      ],
+      "apply": [
+        "./dist/apply.d.ts"
+      ],
+      "clone": [
+        "./dist/clone.d.ts"
+      ],
+      "constants": [
+        "./dist/constants.d.ts"
+      ],
+      "patch": [
+        "./dist/patch.d.ts"
+      ],
+      "pointer": [
+        "./dist/pointer.d.ts"
+      ],
+      "equal": [
+        "./dist/equal.d.ts"
+      ],
+      "unicode": [
+        "./dist/unicode.d.ts"
+      ],
+      "validate": [
+        "./dist/validate.d.ts"
+      ],
+      "types": [
+        "./dist/types.d.ts"
+      ],
+      "*": [
+        "./dist/index.d.ts"
+      ]
+    }
   },
   "files": [
     "dist",
@@ -57,7 +119,10 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node test/smoke.mjs"
+    "build": "node build.mjs",
+    "typecheck": "tsc -p test/tsconfig.json",
+    "test": "npm run build && npm run typecheck && node test/smoke.mjs && node test/diff-core.mjs && node test/diff-fuzz.mjs --cases 1000",
+    "prepack": "npm run test"
   },
   "keywords": [
     "json",
@@ -66,5 +131,8 @@
     "delta",
     "rfc6902",
     "state"
-  ]
+  ],
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
 }

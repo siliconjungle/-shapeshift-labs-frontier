@@ -52,6 +52,7 @@ const PURE_KEYED_MOVE_MAX = 2048;
 const LARGE_PURE_KEYED_MOVE_MAX = 65536;
 const STRUCTURAL_ARRAY_KEY_MAX = 1024;
 const OBJECT_FIELD_ARRAY_KEY_MAX = 4096;
+const LARGE_STRUCTURAL_SINGLE_MOVE_MIN = OBJECT_FIELD_ARRAY_KEY_MAX + 1;
 const STRUCTURAL_KEY_SAMPLE_LIMIT = 32;
 const ARRAY_KEY_SIGNAL_SAMPLE_LIMIT = 128;
 const STRUCTURAL_KEY_MAX_CHARS = 1024;
@@ -2410,6 +2411,14 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
         tryPureSingleScalarMoveArrayDiff(source, target, path, patch)) {
         return;
     }
+    if (arrayKey === null &&
+        keyCompare === null &&
+        targetLength === sourceLength &&
+        sourceLength >= LARGE_STRUCTURAL_SINGLE_MOVE_MIN &&
+        sourceLength <= LARGE_PURE_KEYED_MOVE_MAX &&
+        tryLargePureSingleStructuralMoveArrayDiff(source, target, path, patch)) {
+        return;
+    }
     if (targetLength === sourceLength &&
         tryTupleArrayAssignDiff(source, target, path, patch)) {
         return;
@@ -3464,6 +3473,47 @@ function tryPureSingleCompositeMoveArrayDiff(source, target, path, patch, key0, 
         return true;
     }
     return false;
+}
+function tryLargePureSingleStructuralMoveArrayDiff(source, target, path, patch) {
+    const length = source.length;
+    let start = 0;
+    while (start < length && sameStructuralMoveNode(source[start], target[start])) {
+        start++;
+    }
+    if (start === length)
+        return true;
+    let end = length - 1;
+    while (end > start && sameStructuralMoveNode(source[end], target[end])) {
+        end--;
+    }
+    if (sameStructuralMoveNode(source[end], target[start]) &&
+        matchesLargeStructuralMoveEndToStart(source, target, start, end)) {
+        patch[patch.length] = [OP_ARRAY_MOVE, path.slice(), end, start];
+        return true;
+    }
+    if (sameStructuralMoveNode(source[start], target[end]) &&
+        matchesLargeStructuralMoveStartToEnd(source, target, start, end)) {
+        patch[patch.length] = [OP_ARRAY_MOVE, path.slice(), start, end];
+        return true;
+    }
+    return false;
+}
+function matchesLargeStructuralMoveEndToStart(source, target, start, end) {
+    for (let sourceIndex = start, targetIndex = start + 1; sourceIndex < end; sourceIndex++, targetIndex++) {
+        if (!sameStructuralMoveNode(source[sourceIndex], target[targetIndex]))
+            return false;
+    }
+    return true;
+}
+function matchesLargeStructuralMoveStartToEnd(source, target, start, end) {
+    for (let sourceIndex = start + 1, targetIndex = start; sourceIndex <= end; sourceIndex++, targetIndex++) {
+        if (!sameStructuralMoveNode(source[sourceIndex], target[targetIndex]))
+            return false;
+    }
+    return true;
+}
+function sameStructuralMoveNode(source, target) {
+    return sameJsonScalarOrRef(source, target) || boundedJsonEquals(source, target);
 }
 function sameReaderKey(readKey, sourceValue, targetValue) {
     if (readKey.keyKind === 'object') {

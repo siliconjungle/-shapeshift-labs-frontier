@@ -93,6 +93,49 @@ import {
 } from '@shapeshift-labs/frontier';
 ```
 
+## TypeScript
+
+Frontier ships first-party TypeScript declarations for the root package and every core subpath. The runtime package is plain ESM JavaScript, and the types are included in `dist/*.d.ts`.
+
+```ts
+import { diff, applyPatchImmutable, type DiffOptions, type JsonValue, type Patch } from '@shapeshift-labs/frontier';
+import type { JsonPath, PatchOperation } from '@shapeshift-labs/frontier/types';
+
+const options: DiffOptions = { arrayKey: 'id' };
+const patch: Patch = diff(before as JsonValue, after as JsonValue, options);
+const next = applyPatchImmutable(before as JsonValue, patch);
+```
+
+Subpath declarations are also exported:
+
+```ts
+import { diff } from '@shapeshift-labs/frontier/diff';
+import { applyPatchImmutable, type Patch } from '@shapeshift-labs/frontier/patch';
+```
+
+The package includes `exports.types`, a `./types` subpath, and `typesVersions` mappings for TypeScript projects that still use older Node-style package resolution.
+
+## Testing
+
+The standalone package repository includes package-level tests that run against the built JavaScript distribution:
+
+```sh
+npm test
+```
+
+That command runs:
+
+- TypeScript consumer checks against the published declarations.
+- Smoke tests for root and subpath imports.
+- Deterministic core diff/apply API tests.
+- A seedable diff/apply fuzzer covering nested JSON objects, arrays, strings, scalars, stable diffing, patch validation, mutable apply, immutable apply, and normalized patch replay.
+
+The fuzzer can be run directly:
+
+```sh
+node test/diff-fuzz.mjs --cases 5000 --seed 1234
+```
+
 ### `diff(before, after, options?)`
 
 Returns a compact Frontier patch.
