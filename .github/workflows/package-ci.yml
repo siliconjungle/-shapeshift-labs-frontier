@@ -1,0 +1,82 @@
+name: Package CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'codex/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Test, fuzz, bench, and pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Check package metadata
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const readme = fs.readFileSync('README.md', 'utf8');
+          const fail = (message) => {
+            console.error(message);
+            process.exitCode = 1;
+          };
+          const repository = typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url;
+          if (!pkg.name?.startsWith('@shapeshift-labs/frontier')) fail('package name must stay in the Frontier scope');
+          if (pkg.private === true) fail('standalone packages must be publishable, not private');
+          if (!repository?.includes('siliconjungle/-shapeshift-labs-frontier')) fail('repository URL must point at the package source repo');
+          if (!Array.isArray(pkg.files) || !pkg.files.includes('dist')) fail('package files must include dist');
+          if (!Array.isArray(pkg.files) || !pkg.files.includes('README.md')) fail('package files must include README.md');
+          if (!Array.isArray(pkg.files) || !pkg.files.includes('LICENSE')) fail('package files must include LICENSE');
+          if (!pkg.scripts?.test) fail('missing npm test script');
+          if (!pkg.scripts?.bench) fail('missing npm run bench script');
+          if (!pkg.scripts?.['pack:dry']) fail('missing npm run pack:dry script');
+          if (!readme.includes(pkg.name)) fail('README must mention the package name');
+          if (!/^## Benchmarks$/m.test(readme)) fail('README must include a Benchmarks section');
+          if (!/npm run bench/.test(readme)) fail('README must document npm run bench');
+          if (/(faster than|slower than|beats?\s+(jsondiffpatch|microdiff|rfc6902|fast-json-patch)|vs\.?\s+(jsondiffpatch|microdiff|rfc6902|fast-json-patch))/i.test(readme)) {
+            fail('README must not contain competitor comparison claims');
+          }
+          if (process.exitCode) process.exit(process.exitCode);
+          NODE
+
+      - name: Test
+        run: npm test
+
+      - name: Fuzz
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.fuzz ? 0 : 1)"; then
+            npm run fuzz
+          else
+            echo "No fuzz script configured."
+          fi
+
+      - name: Bench
+        run: npm run bench
+
+      - name: Dry pack
+        run: npm run pack:dry
