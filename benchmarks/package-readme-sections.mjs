@@ -23,15 +23,14 @@ const packages = [
   pkg('frontier-crdt-sync', '@shapeshift-labs/frontier-crdt-sync', 'CRDT sync endpoints, repo/storage/provider contracts, document URLs, local networks, model checking, forensics, and text binding contracts.'),
   pkg('frontier-crdt-websocket', '@shapeshift-labs/frontier-crdt-websocket', 'WebSocket client/server transports for Frontier CRDT sync providers.'),
   pkg('frontier-react', '@shapeshift-labs/frontier-react', 'React external-store hooks and adapters for Frontier state, cache, and CRDT surfaces.'),
-  pkg('frontier-richtext', '@shapeshift-labs/frontier-richtext', 'Rich text Delta normalization/application, marks, embeds, ranges, and cursor/selection transforms for local editor integrations.')
+  pkg('frontier-richtext', '@shapeshift-labs/frontier-richtext', 'Rich text Delta normalization/application, marks, embeds, ranges, and cursor/selection transforms for local editor integrations.'),
+  pkg('frontier-realtime', '@shapeshift-labs/frontier-realtime', 'Shared realtime command, tick, snapshot, prediction, reconciliation, interpolation, rollback, message, and delta primitives.'),
+  pkg('frontier-realtime-server', '@shapeshift-labs/frontier-realtime-server', 'Authoritative realtime room, tick, command validation, rate-limit, session, and snapshot-history runtime.'),
+  pkg('frontier-realtime-websocket', '@shapeshift-labs/frontier-realtime-websocket', 'WebSocket client, wire, and Node room-server transport for Frontier realtime.'),
+  pkg('frontier-game', '@shapeshift-labs/frontier-game', 'Game-facing entity, component, player, room, ownership, spatial interest, rollback, physics, and replication helpers above realtime.')
 ];
 
-const plannedPackages = [
-  ['@shapeshift-labs/frontier-realtime', 'planned realtime command, tick, snapshot, prediction, reconciliation, interpolation, and rollback primitives'],
-  ['@shapeshift-labs/frontier-realtime-server', 'planned authoritative server runtime for rooms, ticks, validation, lag-compensation history, and replication policy'],
-  ['@shapeshift-labs/frontier-realtime-websocket', 'planned WebSocket transport for realtime commands and snapshots'],
-  ['@shapeshift-labs/frontier-game', 'planned game-facing entity, component, player, room, ownership, and replication vocabulary above realtime']
-];
+const plannedPackages = [];
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const current = packages.find((entry) => entry.name === packageJson.name);
@@ -73,7 +72,9 @@ function updatePackageReadme(text, currentPackage) {
   const relatedNextHeading = hasPlanned ? plannedHeading : installHeading;
   next = replaceHeadingSection(next, relatedHeading, relatedNextHeading, renderRelatedPackages(currentPackage));
 
-  if (hasPlanned) {
+  if (plannedPackages.length === 0) {
+    if (hasPlanned) next = removeHeadingSection(next, plannedHeading, installHeading);
+  } else if (hasPlanned) {
     next = replaceHeadingSection(next, plannedHeading, installHeading, renderPlannedPackages());
   } else {
     const installStart = next.indexOf('\n' + installHeading + '\n');
@@ -118,6 +119,15 @@ function replaceHeadingSection(text, heading, nextHeading, body) {
   if (next === -1) throw new Error('missing next heading ' + nextHeading + ' after ' + heading);
   const normalizedBody = body.replace(/\n*$/, '\n\n');
   return text.slice(0, bodyStart) + '\n' + normalizedBody + text.slice(next + 1);
+}
+
+function removeHeadingSection(text, heading, nextHeading) {
+  const start = text.indexOf(heading + '\n');
+  if (start === -1) return text;
+  const bodyStart = start + heading.length + 1;
+  const next = text.indexOf('\n' + nextHeading, bodyStart);
+  if (next === -1) throw new Error('missing next heading ' + nextHeading + ' after ' + heading);
+  return text.slice(0, start) + text.slice(next + 1);
 }
 
 function parseArgs(argv) {
