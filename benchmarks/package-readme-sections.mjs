@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const rootDir = process.cwd();
-const args = parseArgs(process.argv.slice(2));
-const check = args.check === true;
+const here = path.dirname(fileURLToPath(import.meta.url));
+const monorepoScript = path.resolve(here, '..', '..', '..', 'benchmarks', 'package-readme-sections.js');
 
 const packages = [
   pkg('frontier', '@shapeshift-labs/frontier', 'Core JSON diff/apply, compact patch tuples, JSON Pointer, equality, clone, validation, Unicode helpers.'),
@@ -17,8 +17,11 @@ const packages = [
   pkg('frontier-state-cache-sql', '@shapeshift-labs/frontier-state-cache-sql', 'SQL persistence adapter for Frontier state-cache snapshots and change logs.'),
   pkg('frontier-schema', '@shapeshift-labs/frontier-schema', 'JSON Schema validation, Frontier profile generation, CloudEvent envelopes, and query/table schema helpers.'),
   pkg('frontier-event-log', '@shapeshift-labs/frontier-event-log', 'Bounded event logs, replay cursors, consumer acknowledgements, keyed compaction, checkpoints, and Frontier patch event records.'),
+  pkg('frontier-scheduler', '@shapeshift-labs/frontier-scheduler', 'Deterministic work scheduling, lanes, cancellation, backpressure, frame policies, replay snapshots, and work graphs.'),
   pkg('frontier-logging', '@shapeshift-labs/frontier-logging', 'Opt-in structured logging, browser telemetry, file sinks, exporters, benchmark traces, and Frontier patch/update summaries.'),
   pkg('frontier-mutation', '@shapeshift-labs/frontier-mutation', 'Explicit mutation and selector plans compiled to Frontier patches or CRDT operations.'),
+  pkg('frontier-virtual', '@shapeshift-labs/frontier-virtual', 'DOM-neutral virtualization, layout providers, range materialization, grids, spatial culling, frustum culling, and serializable layout state.'),
+  pkg('frontier-dom', '@shapeshift-labs/frontier-dom', 'Patch-native DOM and host renderer bindings, manifest hydration, JSX runtime/compiler helpers, SSR, devtools, and logging bridges.'),
   pkg('frontier-crdt', '@shapeshift-labs/frontier-crdt', 'Native CRDT documents, update tooling, awareness, branches, conflict introspection, version frames, and undo.'),
   pkg('frontier-crdt-sync', '@shapeshift-labs/frontier-crdt-sync', 'CRDT sync endpoints, repo/storage/provider contracts, document URLs, local networks, model checking, forensics, and text binding contracts.'),
   pkg('frontier-crdt-websocket', '@shapeshift-labs/frontier-crdt-websocket', 'WebSocket client/server transports for Frontier CRDT sync providers.'),
@@ -30,23 +33,26 @@ const packages = [
   pkg('frontier-game', '@shapeshift-labs/frontier-game', 'Game-facing entity, component, player, room, ownership, spatial interest, rollback, physics, and replication helpers above realtime.')
 ];
 
-const plannedPackages = [];
+if (fs.existsSync(monorepoScript)) {
+  await import(pathToFileURL(monorepoScript).href);
+} else {
+  const rootDir = path.resolve(here, '..');
+  const check = process.argv.slice(2).includes('--check');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+  const current = packages.find((entry) => entry.name === packageJson.name);
+  if (!current) throw new Error('unknown Frontier package in package.json: ' + packageJson.name);
 
-const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
-const current = packages.find((entry) => entry.name === packageJson.name);
-if (!current) throw new Error('unknown Frontier package in package.json: ' + packageJson.name);
-
-const readmePath = path.join(rootDir, 'README.md');
-const currentText = fs.readFileSync(readmePath, 'utf8');
-const nextText = updatePackageReadme(currentText, current);
-
-if (currentText !== nextText) {
-  if (check) {
-    console.error('README package-family sections are stale.');
-    console.error('Run npm run readme:packages to refresh README.md.');
-    process.exit(1);
+  const readmePath = path.join(rootDir, 'README.md');
+  const currentText = fs.readFileSync(readmePath, 'utf8');
+  const nextText = updatePackageReadme(currentText, current);
+  if (currentText !== nextText) {
+    if (check) {
+      console.error('README package-family sections are stale.');
+      console.error('Run npm run readme:packages to refresh README.md.');
+      process.exit(1);
+    }
+    fs.writeFileSync(readmePath, nextText);
   }
-  fs.writeFileSync(readmePath, nextText);
 }
 
 function pkg(id, name, role) {
@@ -62,27 +68,10 @@ function pkg(id, name, role) {
 
 function updatePackageReadme(text, currentPackage) {
   const relatedHeading = '## Related Packages';
-  const plannedHeading = '## Planned Realtime and Game Packages';
   const installHeading = '## Install';
   if (!text.includes(relatedHeading + '\n')) throw new Error('README.md is missing ' + relatedHeading);
   if (!text.includes('\n' + installHeading + '\n')) throw new Error('README.md is missing ' + installHeading);
-
-  let next = text;
-  const hasPlanned = next.includes('\n' + plannedHeading + '\n');
-  const relatedNextHeading = hasPlanned ? plannedHeading : installHeading;
-  next = replaceHeadingSection(next, relatedHeading, relatedNextHeading, renderRelatedPackages(currentPackage));
-
-  if (plannedPackages.length === 0) {
-    if (hasPlanned) next = removeHeadingSection(next, plannedHeading, installHeading);
-  } else if (hasPlanned) {
-    next = replaceHeadingSection(next, plannedHeading, installHeading, renderPlannedPackages());
-  } else {
-    const installStart = next.indexOf('\n' + installHeading + '\n');
-    if (installStart === -1) throw new Error('README.md is missing ' + installHeading);
-    next = next.slice(0, installStart + 1) + plannedHeading + '\n\n' + renderPlannedPackages() + '\n' + next.slice(installStart + 1);
-  }
-
-  return next;
+  return replaceHeadingSection(text, relatedHeading, installHeading, renderRelatedPackages(currentPackage));
 }
 
 function renderRelatedPackages(currentPackage) {
@@ -98,19 +87,6 @@ function renderRelatedPackages(currentPackage) {
   ].join('\n') + '\n';
 }
 
-function renderPlannedPackages() {
-  return [
-    'The following repositories are reserved placeholders for future realtime and game-facing Frontier packages. They are not production-ready packages and should not be treated as benchmarked or stable npm surfaces yet.',
-    '',
-    ...plannedPackages.map(([name, description]) => '- [`' + name + '`](' + repoUrlForPackageName(name) + '): ' + description + '.')
-  ].join('\n') + '\n';
-}
-
-function repoUrlForPackageName(name) {
-  const id = name.replace('@shapeshift-labs/', '');
-  return 'https://github.com/siliconjungle/-shapeshift-labs-' + id;
-}
-
 function replaceHeadingSection(text, heading, nextHeading, body) {
   const start = text.indexOf(heading + '\n');
   if (start === -1) throw new Error('missing heading ' + heading);
@@ -119,22 +95,4 @@ function replaceHeadingSection(text, heading, nextHeading, body) {
   if (next === -1) throw new Error('missing next heading ' + nextHeading + ' after ' + heading);
   const normalizedBody = body.replace(/\n*$/, '\n\n');
   return text.slice(0, bodyStart) + '\n' + normalizedBody + text.slice(next + 1);
-}
-
-function removeHeadingSection(text, heading, nextHeading) {
-  const start = text.indexOf(heading + '\n');
-  if (start === -1) return text;
-  const bodyStart = start + heading.length + 1;
-  const next = text.indexOf('\n' + nextHeading, bodyStart);
-  if (next === -1) throw new Error('missing next heading ' + nextHeading + ' after ' + heading);
-  return text.slice(0, start) + text.slice(next + 1);
-}
-
-function parseArgs(argv) {
-  const parsed = {};
-  for (const arg of argv) {
-    if (arg === '--check') parsed.check = true;
-    else throw new Error('unknown argument: ' + arg);
-  }
-  return parsed;
 }
