@@ -69,7 +69,7 @@ if (!delegated) {
     "role": "Serializable incremental dataflow and materialized-view graphs for Frontier apps, including selectors, dependency DAGs, filters, joins, aggregations, stale paths, recompute budgets, output patches, provenance records, and proof of why derived views changed.",
     "npmUrl": "https://www.npmjs.com/package/@shapeshift-labs/frontier-dataflow",
     "repoName": "siliconjungle/-shapeshift-labs-frontier-dataflow",
-    "repoUrl": "https://github.com/siliconjungle/siliconjungle--shapeshift-labs-frontier-dataflow"
+    "repoUrl": "https://github.com/siliconjungle/-shapeshift-labs-frontier-dataflow"
   },
   {
     "id": "frontier-state-cache",
@@ -213,7 +213,7 @@ if (!delegated) {
     "role": "Serializable worker and edge task descriptors for Frontier apps, including queues, idempotency keys, retry and timeout policy, declared reads/writes/effects, snapshots, patch outputs, produced assets, execution records, logs, trace links, proof hashes, dedupe indexes, and registry graph output.",
     "npmUrl": "https://www.npmjs.com/package/@shapeshift-labs/frontier-worker",
     "repoName": "siliconjungle/-shapeshift-labs-frontier-worker",
-    "repoUrl": "https://github.com/siliconjungle/siliconjungle--shapeshift-labs-frontier-worker"
+    "repoUrl": "https://github.com/siliconjungle/-shapeshift-labs-frontier-worker"
   },
   {
     "id": "frontier-assets",
@@ -222,6 +222,14 @@ if (!delegated) {
     "npmUrl": "https://www.npmjs.com/package/@shapeshift-labs/frontier-assets",
     "repoName": "siliconjungle/-shapeshift-labs-frontier-assets",
     "repoUrl": "https://github.com/siliconjungle/-shapeshift-labs-frontier-assets"
+  },
+  {
+    "id": "frontier-blueprint",
+    "name": "@shapeshift-labs/frontier-blueprint",
+    "role": "Serializable Blueprint/Prefab flyweight templates for Frontier apps, including parameterized instantiation, deterministic ID/path remapping, compact overrides, variants, effective-state materialization, scene/state patch emission, dependency metadata, and registry graph output.",
+    "npmUrl": "https://www.npmjs.com/package/@shapeshift-labs/frontier-blueprint",
+    "repoName": "siliconjungle/-shapeshift-labs-frontier-blueprint",
+    "repoUrl": "https://github.com/siliconjungle/-shapeshift-labs-frontier-blueprint"
   },
   {
     "id": "frontier-triggers",
@@ -325,7 +333,7 @@ if (!delegated) {
     "role": "Serializable temporal explanation and causality records for Frontier apps, including field-change explanations, action/workflow/policy/effect/trace/test provenance, audit windows, undo planning, registry/provenance graph output, JSONL replay bundles, and proof hashes.",
     "npmUrl": "https://www.npmjs.com/package/@shapeshift-labs/frontier-history",
     "repoName": "siliconjungle/-shapeshift-labs-frontier-history",
-    "repoUrl": "https://github.com/siliconjungle/siliconjungle--shapeshift-labs-frontier-history"
+    "repoUrl": "https://github.com/siliconjungle/-shapeshift-labs-frontier-history"
   },
   {
     "id": "frontier-application",
@@ -333,7 +341,7 @@ if (!delegated) {
     "role": "Serializable whole-application graph and impact queries for Frontier apps, including features, owners, packages, routes, views, actions, mutations, state paths, effects, workers, assets, tests, traces, policies, workflows, migrations, benchmarks, registry graph output, feature maps, JSONL bundles, and proof hashes.",
     "npmUrl": "https://www.npmjs.com/package/@shapeshift-labs/frontier-application",
     "repoName": "siliconjungle/-shapeshift-labs-frontier-application",
-    "repoUrl": "https://github.com/siliconjungle/siliconjungle--shapeshift-labs-frontier-application"
+    "repoUrl": "https://github.com/siliconjungle/-shapeshift-labs-frontier-application"
   },
   {
     "id": "frontier-linter",
