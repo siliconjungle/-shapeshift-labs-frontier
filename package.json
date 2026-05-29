@@ -1,6 +1,6 @@
 {
   "name": "@shapeshift-labs/frontier",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Fast compact JSON diff and patch primitives for JavaScript values.",
   "type": "module",
   "license": "MIT",
@@ -66,6 +66,16 @@
       "import": "./dist/validate.js",
       "default": "./dist/validate.js"
     },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
+    },
+    "./registry": {
+      "types": "./dist/registry.d.ts",
+      "import": "./dist/registry.js",
+      "default": "./dist/registry.js"
+    },
     "./types": {
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js",
@@ -101,6 +111,12 @@
       ],
       "validate": [
         "./dist/validate.d.ts"
+      ],
+      "runtime": [
+        "./dist/runtime.d.ts"
+      ],
+      "registry": [
+        "./dist/registry.d.ts"
       ],
       "types": [
         "./dist/types.d.ts"

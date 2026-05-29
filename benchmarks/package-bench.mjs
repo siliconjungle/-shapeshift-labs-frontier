@@ -7,6 +7,7 @@ import {
   applyPatchImmutable,
   diff
 } from '../dist/index.js';
+import { createRuntimeScheduler } from '../dist/runtime.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -16,6 +17,12 @@ const outPath = args.out ? path.resolve(rootDir, args.out) : null;
 
 let sink = 0;
 
+const RUNTIME_AREAS = ['diff', 'apply', 'codec', 'sync', 'cache', 'logging'];
+const runtimeBefore = { rows: makeRows(128), meta: { clock: 1, source: 'runtime' } };
+const runtimeAfter = cloneJson(runtimeBefore);
+runtimeAfter.rows[64] = { ...runtimeAfter.rows[64], score: 9001, label: 'runtime changed' };
+const runtimePatch = diff(runtimeBefore, runtimeAfter, { arrayKey: 'id' });
+
 const fixtures = [
   makeSmallObjectFixture(),
   makeKeyedRowsFixture(),
@@ -24,6 +31,7 @@ const fixtures = [
 ];
 
 const rows = fixtures.map(runFixture);
+const runtimeRows = runRuntimeSchedulerBenchmarks();
 const report = {
   package: '@shapeshift-labs/frontier',
   version: readPackageVersion(),
@@ -31,7 +39,8 @@ const report = {
   node: process.version,
   platform: process.platform + ' ' + process.arch,
   rounds,
-  rows
+  rows,
+  runtimeRows
 };
 
 if (outPath) {
@@ -153,7 +162,106 @@ function printReport(report) {
       padLeft(formatUs(row.applyMedianUs), 12)
     );
   }
+  console.log('');
+  console.log(padRight('Runtime fixture', 36) + padLeft('Target', 8) + padLeft('Done', 8) + padLeft('Overrun', 9) + padLeft('Median', 12) + padLeft('p95', 11));
+  for (const row of report.runtimeRows) {
+    console.log(
+      padRight(row.fixture, 36) +
+      padLeft(String(row.targetUnits), 8) +
+      padLeft(String(row.completedUnits), 8) +
+      padLeft(String(row.overrunUnits), 9) +
+      padLeft(formatUs(row.medianUs), 12) +
+      padLeft(formatUs(row.p95Us), 11)
+    );
+  }
   if (outPath) console.log('\nwrote ' + path.relative(rootDir, outPath));
+}
+
+function runRuntimeSchedulerBenchmarks() {
+  const targetUnits = 48;
+  const perArea = 64;
+  const totalUnits = RUNTIME_AREAS.length * perArea;
+  return [
+    runRuntimeRow('Ad hoc per-area slices', 20, () => runAdHocRuntimeSlices(perArea, targetUnits), {
+      targetUnits,
+      expectedUnits: RUNTIME_AREAS.length * targetUnits
+    }),
+    runRuntimeRow('Central scheduler slice', 20, () => runCentralRuntimeSlice(perArea, targetUnits), {
+      targetUnits,
+      expectedUnits: targetUnits
+    }),
+    runRuntimeRow('Direct full mixed work', 15, () => runDirectRuntimeWork(perArea), {
+      targetUnits: totalUnits,
+      expectedUnits: totalUnits
+    }),
+    runRuntimeRow('Scheduler full mixed work', 15, () => runCentralRuntimeSlice(perArea, totalUnits), {
+      targetUnits: totalUnits,
+      expectedUnits: totalUnits
+    })
+  ];
+}
+
+function runRuntimeRow(fixture, inner, fn, meta) {
+  const completedUnits = fn();
+  assert.strictEqual(completedUnits, meta.expectedUnits, fixture + ' completed units');
+  const timing = measure(() => {
+    sink += fn();
+  }, inner);
+  return {
+    fixture,
+    targetUnits: meta.targetUnits,
+    completedUnits,
+    overrunUnits: Math.max(0, completedUnits - meta.targetUnits),
+    medianUs: round(timing.median),
+    p95Us: round(timing.p95)
+  };
+}
+
+function runAdHocRuntimeSlices(perArea, localUnits) {
+  let completed = 0;
+  for (const area of RUNTIME_AREAS) {
+    for (let index = 0; index < perArea && index < localUnits; index++) {
+      sink += runRuntimeTask(area, index);
+      completed++;
+    }
+  }
+  return completed;
+}
+
+function runCentralRuntimeSlice(perArea, targetUnits) {
+  const scheduler = createRuntimeScheduler({ maxUnits: targetUnits });
+  for (const area of RUNTIME_AREAS) {
+    for (let index = 0; index < perArea; index++) {
+      scheduler.schedule({
+        area,
+        priority: (index & 15) === 0 ? 'high' : 'normal',
+        run: () => {
+          sink += runRuntimeTask(area, index);
+        }
+      });
+    }
+  }
+  return scheduler.run().completed;
+}
+
+function runDirectRuntimeWork(perArea) {
+  let completed = 0;
+  for (const area of RUNTIME_AREAS) {
+    for (let index = 0; index < perArea; index++) {
+      sink += runRuntimeTask(area, index);
+      completed++;
+    }
+  }
+  return completed;
+}
+
+function runRuntimeTask(area, index) {
+  if (area === 'diff') return diff(runtimeBefore, runtimeAfter, { arrayKey: 'id' }).length;
+  if (area === 'apply') return applyPatchImmutable(runtimeBefore, runtimePatch).rows.length;
+  if (area === 'codec') return JSON.stringify(runtimeAfter).length;
+  if (area === 'sync') return ((index + 1) * 2654435761) >>> 0;
+  if (area === 'cache') return runtimeBefore.rows[index & 127].score;
+  return JSON.stringify({ area, index, ops: runtimePatch.length, meta: runtimeAfter.meta, row: runtimeAfter.rows[index & 127] }).length;
 }
 
 function percentile(sorted, fraction) {

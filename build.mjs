@@ -17,7 +17,7 @@ for (const dependency of readLocalDependencies(packageJson)) {
   const targetDir = localPackageDir(dependency);
   if (!targetDir || targetDir === packageDir) continue;
   linkLocalPackage(dependency, targetDir);
-  if (!stack.has(dependency)) {
+  if (!stack.has(dependency) && !isPackageBuildCurrent(targetDir)) {
     execFileSync('npm', ['--prefix', targetDir, 'run', 'build'], {
       stdio: 'inherit',
       env: {
@@ -28,7 +28,7 @@ for (const dependency of readLocalDependencies(packageJson)) {
   }
 }
 
-fs.rmSync(path.join(packageDir, 'dist'), { recursive: true, force: true });
+fs.rmSync(path.join(packageDir, 'dist'), { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
 execFileSync(resolveTsc(), ['-b', path.join(packageDir, 'tsconfig.json'), '--force'], { stdio: 'inherit' });
 
 function readLocalDependencies(pkg) {
@@ -62,6 +62,29 @@ function linkLocalPackage(name, targetDir) {
     if (error.code !== 'ENOENT') throw error;
   }
   fs.symlinkSync(path.relative(path.dirname(linkPath), targetDir), linkPath, 'dir');
+}
+
+function isPackageBuildCurrent(targetDir) {
+  const distEntry = path.join(targetDir, 'dist', 'index.js');
+  if (!fs.existsSync(distEntry)) return false;
+  const distMtime = fs.statSync(distEntry).mtimeMs;
+  for (const file of ['package.json', 'tsconfig.json', 'build.mjs']) {
+    const full = path.join(targetDir, file);
+    if (fs.existsSync(full) && fs.statSync(full).mtimeMs > distMtime) return false;
+  }
+  const srcDir = path.join(targetDir, 'src');
+  if (fs.existsSync(srcDir) && newestMtime(srcDir) > distMtime) return false;
+  return true;
+}
+
+function newestMtime(dir) {
+  let newest = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) newest = Math.max(newest, newestMtime(full));
+    else newest = Math.max(newest, fs.statSync(full).mtimeMs);
+  }
+  return newest;
 }
 
 function resolveTsc() {

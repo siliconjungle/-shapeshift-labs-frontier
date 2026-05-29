@@ -16,6 +16,27 @@ import {
 } from '@shapeshift-labs/frontier';
 import { diff as diffFromSubpath } from '@shapeshift-labs/frontier/diff';
 import { applyPatchImmutable as applyFromPatchSubpath } from '@shapeshift-labs/frontier/patch';
+import {
+  FRONTIER_RUNTIME_WORK_AREAS,
+  createRuntimeBudget,
+  createRuntimeScheduler,
+  type FrontierRuntimeScheduler
+} from '@shapeshift-labs/frontier/runtime';
+import {
+  createFrontierRegistry,
+  frontierRegistryExplain,
+  frontierRegistryFeatureNode,
+  frontierRegistryImpact,
+  frontierRegistryIndex,
+  frontierRegistryMergeGraphs,
+  frontierRegistryNode,
+  frontierRegistryQuery,
+  frontierRegistryTrace,
+  frontierRegistryValidateGraph,
+  type FrontierRegistryGraph,
+  type FrontierRegistryImpact,
+  type FrontierRegistryTrace
+} from '@shapeshift-labs/frontier/registry';
 import { type JsonObject, type JsonRecord } from '@shapeshift-labs/frontier/types';
 
 type Todo = JsonObject & {
@@ -69,6 +90,46 @@ applyFromPatchSubpath(before, [manual]);
 diffFromSubpath(before, after, options);
 equalsJsonFast(cloned, after);
 
+const runtimeBudget = createRuntimeBudget({ maxUnits: 4, maxMs: 8 });
+runtimeBudget.consume(1);
+const runtimeScheduler: FrontierRuntimeScheduler = createRuntimeScheduler({
+  maxUnits: 2,
+  areaUnitBudgets: { logging: 1 }
+});
+runtimeScheduler.schedule({ area: FRONTIER_RUNTIME_WORK_AREAS[0], priority: 'high', run: () => undefined });
+runtimeScheduler.run({ maxTasks: 1 });
+
+const registry = createFrontierRegistry();
+registry.register({
+  id: 'types.action',
+  kind: 'action',
+  package: '@app/types',
+  feature: 'types',
+  source: { file: 'src/types.ts', exportName: 'typesAction' },
+  reads: ['/value'],
+  writes: [['value']],
+  touches: [frontierRegistryNode('route', '/types')]
+});
+const registryGraph: FrontierRegistryGraph = registry.inspect();
+const registryImpact: FrontierRegistryImpact = frontierRegistryImpact(registryGraph, { paths: ['/value'] });
+const registryIndex = frontierRegistryIndex(registryGraph);
+const registryQuery = frontierRegistryQuery(registryGraph, { packages: ['@app/types'] });
+const registryValidation = frontierRegistryValidateGraph(registryGraph, { requireFeature: true });
+const registryTrace: FrontierRegistryTrace = frontierRegistryTrace(registryGraph, {
+  features: ['types'],
+  targets: { nodes: [frontierRegistryFeatureNode('types')] }
+});
+const registryExplain = frontierRegistryExplain(registryGraph, { features: ['types'] });
+const registryMerged: FrontierRegistryGraph = frontierRegistryMergeGraphs([registryGraph]);
+
 void intoResult;
 void pointer;
 void object;
+void runtimeBudget;
+void registryImpact;
+void registryIndex;
+void registryQuery;
+void registryValidation;
+void registryTrace;
+void registryExplain;
+void registryMerged;
