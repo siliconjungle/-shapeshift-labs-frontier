@@ -129,6 +129,9 @@ export interface DiffOptions<TValue extends JsonValue = JsonValue> {
   /** Emit a root replacement patch unless both inputs are the same reference. */
   strategy?: 'replace';
 
+  /** Opt in to bounded multiscale text alignment for smaller complex-text patches. */
+  textDiff?: 'adaptive';
+
   /** Optional patch-size keyframe threshold. */
   maxPatchOperations?: number | null;
 

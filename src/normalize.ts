@@ -231,6 +231,7 @@ function mergeAssign(target, source) {
 function mergeSetIntoAssign(assign, set) {
   const path = set[1];
   if (path.length === 0 || typeof path[path.length - 1] !== 'string') return false;
+  if (assign[1].length !== path.length - 1) return false;
   if (!samePath(assign[1], path, path.length - 1)) return false;
 
   setOwnValue(assign[2], path[path.length - 1], set[2]);
@@ -261,7 +262,7 @@ function mergeSiblingSets(out, last, next) {
 function mergeSetIntoNextAssign(out, last, next) {
   const lastPath = last[1];
   const depth = lastPath.length - 1;
-  if (depth < 0 || typeof lastPath[depth] !== 'string' || !samePath(lastPath, next[1], depth)) {
+  if (depth < 0 || next[1].length !== depth || typeof lastPath[depth] !== 'string' || !samePath(lastPath, next[1], depth)) {
     return false;
   }
 

@@ -268,7 +268,7 @@
     "name": "@shapeshift-labs/frontier-loom-ui",
     "role": "Read-only Loom and Frontier operator dashboard for workspace-lifetime progress, active agents, queue state, evidence/admission status, run events, run-log sync projections, semantic leases, gate executions, git apply/workspace evidence, and coordinator steering intent files.",
     "npmUrl": "https://www.npmjs.com/package/@shapeshift-labs/frontier-loom-ui",
-    "repoName": "siliconjungle/-shapeshift-labs-frontier-loom-ui",
+    "repoName": "siliconjungle/frontier-loom-ui",
     "repoUrl": "https://github.com/siliconjungle/frontier-loom-ui"
   },
   {

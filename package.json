@@ -138,13 +138,14 @@
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc -p test/tsconfig.json",
-    "test": "npm run build && npm run typecheck && node test/smoke.mjs && node test/diff-core.mjs && node test/diff-fuzz.mjs --cases 1000",
+    "test": "npm run build && npm run typecheck && node test/smoke.mjs && node test/diff-core.mjs && node test/diff-performance.mjs && node test/diff-fuzz.mjs --cases 1000",
     "fuzz": "npm run build && node test/diff-fuzz.mjs --cases 1000",
     "readme:packages": "node benchmarks/package-readme-sections.mjs",
     "readme:packages:check": "node benchmarks/package-readme-sections.mjs --check",
     "prepack": "npm run readme:packages:check && npm run test",
     "bench": "npm run build && node benchmarks/package-bench.mjs",
-    "pack:dry": "npm run readme:packages:check && npm pack --dry-run"
+    "pack:dry": "npm run readme:packages:check && npm pack --dry-run",
+    "bench:diff": "npm run build && node --expose-gc benchmarks/diff-performance.mjs"
   },
   "keywords": [
     "json",
