@@ -119,15 +119,13 @@ export function applyPatch(value: JsonValue, patch: Patch, options?: ApplyOption
       assignValues(object, op[2], cloneValues);
     } else if (code === OP_STRING_SPLICE) {
       if (
-        op[3] === 0 &&
         i + 1 < length &&
         patch[i + 1][0] === OP_STRING_SPLICE &&
-        patch[i + 1][3] === 0 &&
         samePath(path, patch[i + 1][1])
       ) {
-        const runEnd = stringInsertionRunEnd(patch, i, path);
+        const runEnd = stringSpliceRunEnd(patch, i, path);
         if (path.length === 0) {
-          const nextValue = applyStringInsertionRun(root, patch, i, runEnd);
+          const nextValue = applyStringSpliceRun(root, patch, i, runEnd);
           if (nextValue !== null) {
             root = nextValue;
             invalidatePrefixCache();
@@ -137,7 +135,7 @@ export function applyPatch(value: JsonValue, patch: Patch, options?: ApplyOption
         } else {
           const parent = parentAtFast(path);
           const key = path[path.length - 1];
-          const nextValue = applyStringInsertionRun(parent[key], patch, i, runEnd);
+          const nextValue = applyStringSpliceRun(parent[key], patch, i, runEnd);
           if (nextValue !== null) {
             assignOwnValue(parent, key, nextValue);
             i = runEnd - 1;
@@ -417,12 +415,11 @@ function applyRootStringPatchFast(value, patch) {
   if (
     patch.length > 1 &&
     patch[0][0] === OP_STRING_SPLICE &&
-    patch[0][1].length === 0 &&
-    patch[0][3] === 0
+    patch[0][1].length === 0
   ) {
-    const runEnd = stringInsertionRunEnd(patch, 0, []);
+    const runEnd = stringSpliceRunEnd(patch, 0, []);
     if (runEnd === patch.length) {
-      const inserted = applyStringInsertionRun(value, patch, 0, runEnd);
+      const inserted = applyStringSpliceRun(value, patch, 0, runEnd);
       if (inserted !== null) return inserted;
     }
   }
@@ -668,15 +665,13 @@ function applyPatchPathCopy(originalRoot, patch) {
       assignValues(cloned[1], op[2], true);
     } else if (code === OP_STRING_SPLICE) {
       if (
-        op[3] === 0 &&
         i + 1 < length &&
         patch[i + 1][0] === OP_STRING_SPLICE &&
-        patch[i + 1][3] === 0 &&
         samePath(path, patch[i + 1][1])
       ) {
-        const runEnd = stringInsertionRunEnd(patch, i, path);
+        const runEnd = stringSpliceRunEnd(patch, i, path);
         if (path.length === 0) {
-          const nextValue = applyStringInsertionRun(root, patch, i, runEnd);
+          const nextValue = applyStringSpliceRun(root, patch, i, runEnd);
           if (nextValue !== null) {
             root = nextValue;
             i = runEnd - 1;
@@ -685,7 +680,7 @@ function applyPatchPathCopy(originalRoot, patch) {
         } else {
           const key = path[path.length - 1];
           const currentParent = parentAt(root, path);
-          const nextValue = applyStringInsertionRun(currentParent[key], patch, i, runEnd);
+          const nextValue = applyStringSpliceRun(currentParent[key], patch, i, runEnd);
           if (nextValue !== null) {
             clonePath(root, originalRoot, path, path.length - 1, cloned, clonedContainers, structuralArrays);
             root = cloned[0];
@@ -2242,19 +2237,43 @@ function clonePatchValueIfObject(value) {
   return value !== null && typeof value === 'object' ? clonePatchValue(value) : value;
 }
 
-function stringInsertionRunEnd(patch, start, path) {
-  if (patch[start][3] !== 0) return start + 1;
-
+function stringSpliceRunEnd(patch, start, path) {
   let index = start + 1;
   while (
     index < patch.length &&
     patch[index][0] === OP_STRING_SPLICE &&
-    patch[index][3] === 0 &&
-    samePath(path, patch[index][1])
+    samePath(path, patch[index][1]) &&
+    patch[index][2] >= patch[index - 1][2] + patch[index - 1][4].length
   ) {
     index++;
   }
   return index;
+}
+
+// Combine monotone edits against the original string in one pass. Repeatedly
+// slicing the growing result otherwise flattens/copies long text per operation.
+// Overlapping or out-of-range edits retain the sequential slice semantics.
+function applyStringSpliceRun(value, patch, start, end) {
+  if (typeof value !== 'string') return null;
+  let insertionOnly = true;
+  for (let i = start; i < end; i++) if (patch[i][3] !== 0) { insertionOnly = false; break; }
+  if (insertionOnly) return applyStringInsertionRun(value, patch, start, end);
+
+  let delta = 0;
+  let cursor = 0;
+  const parts = [];
+  for (let i = start; i < end; i++) {
+    const op = patch[i];
+    const sourceIndex = op[2] - delta;
+    const deleteCount = op[3];
+    if (!Number.isSafeInteger(sourceIndex) || !Number.isSafeInteger(deleteCount) || deleteCount < 0 || sourceIndex < cursor || sourceIndex + deleteCount > value.length) return null;
+    if (sourceIndex > cursor) parts.push(value.slice(cursor, sourceIndex));
+    parts.push(op[4]);
+    cursor = sourceIndex + deleteCount;
+    delta += op[4].length - deleteCount;
+  }
+  if (cursor < value.length) parts.push(value.slice(cursor));
+  return parts.join('');
 }
 
 function applyStringInsertionRun(value, patch, start, end) {

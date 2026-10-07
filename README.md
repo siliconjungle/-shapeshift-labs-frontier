@@ -277,6 +277,7 @@ Useful options:
 - `arrayKey`: key or getter used to match object-array rows.
 - `autoArrayKey`: enables conservative key detection for reordered object arrays.
 - `dirtyPaths`: trusted changed paths supplied by a producer.
+- `textDiff: 'adaptive'`: opt in to bounded multiscale alignment of long text with separated edits. It can reduce transmitted patch size at the cost of additional search and replay work; ordinary equality, append, truncate, and single-insert fast paths remain in use. Replay is exact, but minimum edit distance or minimum encoded size is not promised.
 - `dirtyRows`: compact row-oriented dirty frontier.
 - `fingerprintKey` / `versionKey`: trusted subtree tokens that skip unchanged branches.
 - `maxPatchOperations`: emits one root replacement when a patch would be too long.
@@ -485,6 +486,19 @@ node test/diff-fuzz.mjs --cases 5000 --seed 1234
 ```
 
 ## Benchmarks
+
+For a reproducible before/after comparison, including patch bytes, immutable
+replay, and diff/JSON serialization/replay together, see
+[the performance study](benchmarks/DIFF_PERFORMANCE.md). The new text planner is
+explicitly opt-in:
+
+```ts
+const patch = diff(before, after, { textDiff: 'adaptive' });
+```
+
+Use it for workloads where smaller complex-text patches justify extra planning
+and possibly more replay operations. Leave it unset for the existing fast
+structural strategy.
 
 Run the package-local benchmark:
 

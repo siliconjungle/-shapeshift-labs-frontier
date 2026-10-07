@@ -1,3 +1,4 @@
+import { tryAlignString } from './string-align.js';
 import {
   OP_SET,
   OP_REMOVE,
@@ -37,6 +38,7 @@ const STRING_ROTATION_MAX = 256 * 1024;
 const STRING_COPY_MIN = 64;
 const STRING_COPY_SPLIT_PREFIX_MAX = 128;
 const STRING_COPY_SPLIT_SUFFIX_MAX = 128;
+const STRING_COPY_CANDIDATE_MAX = 32;
 const STRING_MULTI_REPLACE_MAX_OPS = 16;
 const STRING_MULTI_REPLACE_MAX_CHANGED = 512;
 const STRING_MULTI_REPLACE_MAX_RUN = 32;
@@ -129,6 +131,7 @@ export function diffInto(source: JsonValue, target: JsonValue, patch: Patch, opt
     return patch;
   }
 
+  const adaptiveText = options?.textDiff === 'adaptive';
   const keyCompare = readKeyCompare(options);
   const getVersion = readVersionGetter(options);
   const arrayKey = readArrayKey(options);
@@ -140,10 +143,10 @@ export function diffInto(source: JsonValue, target: JsonValue, patch: Patch, opt
     (rawDirtyPaths === undefined || rawDirtyPaths === null) &&
     (dirtyRows === undefined || dirtyRows === null)
   ) {
-    walk(source, target, [], patch, keyCompare, getVersion, arrayKey);
+    walk(source, target, [], patch, keyCompare, getVersion, arrayKey, adaptiveText);
   } else {
     if (dirtyRows !== undefined && dirtyRows !== null) {
-      diffDirtyRows(source, target, dirtyRows, patch, keyCompare, getVersion, arrayKey);
+      diffDirtyRows(source, target, dirtyRows, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     }
 
     if (rawDirtyPaths !== undefined && rawDirtyPaths !== null) {
@@ -158,9 +161,9 @@ export function diffInto(source: JsonValue, target: JsonValue, patch: Patch, opt
         if (rowFieldPrefix < rawDirtyPaths.length) {
           const remainingDirtyPaths = normalizeDirtyPaths(rawDirtyPaths.slice(rowFieldPrefix), true);
           if (remainingDirtyPaths === null) {
-            walk(source, target, [], patch, keyCompare, getVersion, arrayKey);
+            walk(source, target, [], patch, keyCompare, getVersion, arrayKey, adaptiveText);
           } else {
-            diffDirtyPaths(source, target, remainingDirtyPaths, patch, keyCompare, getVersion, arrayKey);
+            diffDirtyPaths(source, target, remainingDirtyPaths, patch, keyCompare, getVersion, arrayKey, adaptiveText);
           }
         }
         return patch;
@@ -170,10 +173,10 @@ export function diffInto(source: JsonValue, target: JsonValue, patch: Patch, opt
       }
       const dirtyPaths = readDirtyPaths(options);
       if (dirtyPaths === null) {
-        walk(source, target, [], patch, keyCompare, getVersion, arrayKey);
+        walk(source, target, [], patch, keyCompare, getVersion, arrayKey, adaptiveText);
         return patch;
       }
-      diffDirtyPaths(source, target, dirtyPaths, patch, keyCompare, getVersion, arrayKey);
+      diffDirtyPaths(source, target, dirtyPaths, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     }
   }
   if (maxPatchOperations >= 0 && patch.length > maxPatchOperations) {
@@ -192,7 +195,7 @@ function readMaxPatchOperations(options) {
   return value;
 }
 
-function diffDirtyRows(source, target, dirtyRows, patch, keyCompare, getVersion, arrayKey) {
+function diffDirtyRows(source, target, dirtyRows, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   for (let i = 0, length = dirtyRows.length; i < length; i++) {
     const frontier = dirtyRows[i];
     const rows = normalizeDirtyRowIndexes(frontier.rows);
@@ -233,7 +236,8 @@ function diffDirtyRows(source, target, dirtyRows, patch, keyCompare, getVersion,
       patch,
       keyCompare,
       getVersion,
-      arrayKey
+      arrayKey,
+      adaptiveText
     );
   }
 }
@@ -1154,7 +1158,7 @@ function readPathPrefixValueFrom(root, path, start, length) {
   return value;
 }
 
-function diffDirtyRowsFallback(source, target, frontier, patch, keyCompare, getVersion, arrayKey) {
+function diffDirtyRowsFallback(source, target, frontier, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const rows = frontier.rows;
   const fields = frontier.fields;
   const basePath = frontier.path;
@@ -1166,7 +1170,7 @@ function diffDirtyRowsFallback(source, target, frontier, patch, keyCompare, getV
     path[baseLength] = rowIndex;
 
     if (fields === undefined || fields.length === 0) {
-      diffOneDirtyPath(source, target, path, patch, keyCompare, getVersion, arrayKey);
+      diffOneDirtyPath(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
       path.length = baseLength;
       continue;
     }
@@ -1177,7 +1181,7 @@ function diffDirtyRowsFallback(source, target, frontier, patch, keyCompare, getV
         path[baseLength + 1 + segmentIndex] = field[segmentIndex];
       }
       path.length = baseLength + 1 + field.length;
-      diffOneDirtyPath(source, target, path, patch, keyCompare, getVersion, arrayKey);
+      diffOneDirtyPath(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
       path.length = baseLength + 1;
     }
 
@@ -1185,15 +1189,15 @@ function diffDirtyRowsFallback(source, target, frontier, patch, keyCompare, getV
   }
 }
 
-function diffDirtyPaths(source, target, dirtyPaths, patch, keyCompare, getVersion, arrayKey) {
+function diffDirtyPaths(source, target, dirtyPaths, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   if (dirtyPaths.length === 0) return;
 
   if (dirtyPaths.length === 1) {
     const path = expandDirtyPath(source, target, dirtyPaths[0]);
     if (path.length === 0) {
-      walk(source, target, [], patch, keyCompare, getVersion, arrayKey);
+      walk(source, target, [], patch, keyCompare, getVersion, arrayKey, adaptiveText);
     } else {
-      diffOneDirtyPath(source, target, path, patch, keyCompare, getVersion, arrayKey);
+      diffOneDirtyPath(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     }
     return;
   }
@@ -1203,7 +1207,7 @@ function diffDirtyPaths(source, target, dirtyPaths, patch, keyCompare, getVersio
     const original = dirtyPaths[i];
     const path = expandDirtyPath(source, target, original);
     if (path.length === 0) {
-      walk(source, target, [], patch, keyCompare, getVersion, arrayKey);
+      walk(source, target, [], patch, keyCompare, getVersion, arrayKey, adaptiveText);
       return;
     }
     if (expanded !== null) {
@@ -1230,10 +1234,10 @@ function diffDirtyPaths(source, target, dirtyPaths, patch, keyCompare, getVersio
   }
 
   if (frontier.length >= DIRTY_ARRAY_ROW_GROUP_MIN && frontier.length <= DIRTY_PATH_GROUP_MAX) {
-    diffDirtyPathGroups(source, target, frontier, 0, frontier.length, 0, [], patch, keyCompare, getVersion, arrayKey);
+    diffDirtyPathGroups(source, target, frontier, 0, frontier.length, 0, [], patch, keyCompare, getVersion, arrayKey, adaptiveText);
   } else {
     for (let i = 0, length = frontier.length; i < length; i++) {
-      diffOneDirtyPath(source, target, frontier[i], patch, keyCompare, getVersion, arrayKey);
+      diffOneDirtyPath(source, target, frontier[i], patch, keyCompare, getVersion, arrayKey, adaptiveText);
     }
   }
 }
@@ -1408,14 +1412,14 @@ function hasPotentialDenseDirtyCellRows(paths, rowDepth) {
   return false;
 }
 
-function diffOneDirtyPath(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function diffOneDirtyPath(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const sourceValue = readPathValue(source, path);
   const targetValue = readPathValue(target, path);
 
-  diffDirtyValue(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+  diffDirtyValue(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
 }
 
-function diffDirtyPathGroups(source, target, paths, start, end, depth, path, patch, keyCompare, getVersion, arrayKey) {
+function diffDirtyPathGroups(source, target, paths, start, end, depth, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   let index = start;
   while (index < end) {
     const segment = paths[index][depth];
@@ -1429,7 +1433,7 @@ function diffDirtyPathGroups(source, target, paths, start, end, depth, path, pat
     const targetValue = readChildValue(target, segment);
 
     if (depth + 1 === paths[index].length) {
-      diffDirtyValue(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+      diffDirtyValue(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     } else if (tryDiffDirtyObjectLeafGroup(sourceValue, targetValue, paths, index, groupEnd, depth + 1, path, patch)) {
       // handled by grouped leaf assignment
     } else if (
@@ -1442,7 +1446,7 @@ function diffDirtyPathGroups(source, target, paths, start, end, depth, path, pat
       !tryDiffDirtyArrayObjectAssign(sourceValue, targetValue, paths, index, groupEnd, depth + 1, path, patch) &&
       !tryDiffDirtyArrayObjectNestedAssign(sourceValue, targetValue, paths, index, groupEnd, depth + 1, path, patch)
     ) {
-      diffDirtyPathGroups(sourceValue, targetValue, paths, index, groupEnd, depth + 1, path, patch, keyCompare, getVersion, arrayKey);
+      diffDirtyPathGroups(sourceValue, targetValue, paths, index, groupEnd, depth + 1, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     }
 
     path.length--;
@@ -2497,10 +2501,10 @@ function isSmallDirtyNestedAssignValue(value) {
   return count > 0;
 }
 
-function diffDirtyValue(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey) {
+function diffDirtyValue(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   if (sourceValue !== MISSING_PATH_VALUE) {
     if (targetValue !== MISSING_PATH_VALUE) {
-      walk(sourceValue, targetValue, path.slice(), patch, keyCompare, getVersion, arrayKey);
+      walk(sourceValue, targetValue, path.slice(), patch, keyCompare, getVersion, arrayKey, adaptiveText);
     } else {
       patch[patch.length] = [OP_REMOVE, path.slice()];
     }
@@ -2593,7 +2597,7 @@ function readPathPrefixValue(root, path, length) {
   return value;
 }
 
-function walk(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function walk(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   if (source === target) {
     if (source !== 0 || 1 / source === 1 / target) return;
   }
@@ -2606,7 +2610,7 @@ function walk(source, target, path, patch, keyCompare, getVersion, arrayKey) {
     targetType === TYPE_STRING &&
     shouldUseStringSplice(source, target)
   ) {
-    emitStringSplice(patch, path, source, target);
+    emitStringSplice(patch, path, source, target, adaptiveText);
     return;
   }
 
@@ -2622,14 +2626,14 @@ function walk(source, target, path, patch, keyCompare, getVersion, arrayKey) {
   if (getVersion !== null && sameVersionedSubtree(source, target, getVersion)) return;
 
   if (targetType === TYPE_ARRAY) {
-    diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKey);
+    diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     return;
   }
 
-  diffObjects(source, target, path, patch, keyCompare, getVersion, arrayKey);
+  diffObjects(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
 }
 
-function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const sourceLength = source.length;
   const targetLength = target.length;
   const lengthDelta = targetLength - sourceLength;
@@ -2637,7 +2641,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
   const depth = path.length;
 
   if (shouldUseSparseArrayDiff(source, target, commonLength)) {
-    diffSparseArrays(source, target, path, patch, keyCompare, getVersion, arrayKey);
+    diffSparseArrays(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     return;
   }
 
@@ -2660,7 +2664,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
   if (
     lengthDelta !== 0 &&
     (lengthDelta < -SMALL_ARRAY_SHIFT_LIMIT || lengthDelta > SMALL_ARRAY_SHIFT_LIMIT) &&
-    tryLargePrimitiveShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey)
+    tryLargePrimitiveShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText)
   ) {
     return;
   }
@@ -2668,7 +2672,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
   if (
     lengthDelta !== 0 &&
     (lengthDelta < -SMALL_ARRAY_SHIFT_LIMIT || lengthDelta > SMALL_ARRAY_SHIFT_LIMIT) &&
-    tryLargeShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey)
+    tryLargeShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText)
   ) {
     return;
   }
@@ -2727,7 +2731,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
   ) {
     if (
       arrayKey === false ||
-      !tryKeyedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey)
+      !tryKeyedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText)
     ) {
       if (tryEmitScalarArrayReplace(patch, path, target)) return;
       emitSet(patch, path, target);
@@ -2739,7 +2743,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
   if (
     arrayKey !== false &&
     !shouldSkipAutoKeyedArrayDiff(source, target, commonLength, keyCompare, arrayKey) &&
-    tryKeyedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey)
+    tryKeyedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText)
   ) {
     return;
   }
@@ -2768,7 +2772,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
     lengthDelta !== 0 &&
     lengthDelta >= -SMALL_ARRAY_SHIFT_LIMIT &&
     lengthDelta <= SMALL_ARRAY_SHIFT_LIMIT &&
-    tryShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey)
+    tryShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText)
   ) {
     return;
   }
@@ -2782,7 +2786,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
 
   if (
     targetLength === sourceLength &&
-    tryBalancedRecordShiftDiff(source, target, path, patch, keyCompare, getVersion, arrayKey)
+    tryBalancedRecordShiftDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText)
   ) {
     return;
   }
@@ -2812,7 +2816,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
     keyCompare === null &&
     targetLength === sourceLength &&
     commonLength >= TWO_KEY_RECORD_ARRAY_MIN &&
-    tryTwoKeyRecordArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey)
+    tryTwoKeyRecordArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText)
   ) {
     return;
   }
@@ -2884,7 +2888,7 @@ function diffArrays(source, target, path, patch, keyCompare, getVersion, arrayKe
     }
 
     path[depth] = i;
-    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     path.length = depth;
   }
 
@@ -3028,7 +3032,7 @@ function tryEmitScalarArrayReplace(patch, path, target) {
   return true;
 }
 
-function tryKeyedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function tryKeyedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const sourceLength = source.length;
   const targetLength = target.length;
   if (sourceLength < KEYED_ARRAY_MIN && targetLength < KEYED_ARRAY_MIN) return false;
@@ -3093,12 +3097,19 @@ function tryKeyedArrayDiff(source, target, path, patch, keyCompare, getVersion, 
   if (
     sourceLength === targetLength &&
     commonCount === sourceLength &&
-    trySingleKeyMoveArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, sourceKeys.keys, targetKeys.keys, sourceKeyToIndex)
+    trySingleKeyMoveArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, sourceKeys.keys, targetKeys.keys, sourceKeyToIndex, adaptiveText)
   ) {
     return true;
   }
 
   const keepCommon = markLongestIncreasingSubsequence(targetSourceIndexes);
+  // For a permutation of unique keys, n - LIS is a lower bound on moves.
+  // Avoid constructing and rolling back a plan that must exceed the limit.
+  if (sourceLength === targetLength && commonCount === sourceLength) {
+    let stableCount = 0;
+    for (let i = 0; i < keepCommon.length; i++) if (keepCommon[i]) stableCount++;
+    if (commonCount - stableCount > KEYED_ARRAY_MOVE_LIMIT) return false;
+  }
   const stableSourceIndexes = new Uint8Array(sourceLength);
   for (let i = 0, length = keepCommon.length; i < length; i++) {
     if (keepCommon[i]) {
@@ -3198,11 +3209,11 @@ function tryKeyedArrayDiff(source, target, path, patch, keyCompare, getVersion, 
     return false;
   }
 
-  diffKeyedTargetValues(source, target, path, patch, keyCompare, getVersion, arrayKey, targetKeys.keys, sourceKeyToIndex);
+  diffKeyedTargetValues(source, target, path, patch, keyCompare, getVersion, arrayKey, targetKeys.keys, sourceKeyToIndex, adaptiveText);
   return true;
 }
 
-function trySingleKeyMoveArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, sourceKeys, targetKeys, sourceKeyToIndex) {
+function trySingleKeyMoveArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, sourceKeys, targetKeys, sourceKeyToIndex, adaptiveText) {
   const length = sourceKeys.length;
   let start = 0;
   while (start < length && sourceKeys[start] === targetKeys[start]) start++;
@@ -3225,11 +3236,11 @@ function trySingleKeyMoveArrayDiff(source, target, path, patch, keyCompare, getV
     return false;
   }
 
-  diffKeyedTargetValues(source, target, path, patch, keyCompare, getVersion, arrayKey, targetKeys, sourceKeyToIndex);
+  diffKeyedTargetValues(source, target, path, patch, keyCompare, getVersion, arrayKey, targetKeys, sourceKeyToIndex, adaptiveText);
   return true;
 }
 
-function diffKeyedTargetValues(source, target, path, patch, keyCompare, getVersion, arrayKey, targetKeys, sourceKeyToIndex) {
+function diffKeyedTargetValues(source, target, path, patch, keyCompare, getVersion, arrayKey, targetKeys, sourceKeyToIndex, adaptiveText) {
   const depth = path.length;
   let assignIndexes = null;
   let assignValues = null;
@@ -3262,7 +3273,7 @@ function diffKeyedTargetValues(source, target, path, patch, keyCompare, getVersi
     }
 
     path[depth] = i;
-    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     path.length = depth;
   }
 
@@ -4154,7 +4165,7 @@ function sameKeyOrder(left, right) {
   return true;
 }
 
-function tryLargePrimitiveShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function tryLargePrimitiveShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const sourceLength = source.length;
   const targetLength = target.length;
   const commonLength = sourceLength < targetLength ? sourceLength : targetLength;
@@ -4187,10 +4198,10 @@ function tryLargePrimitiveShiftedArrayDiff(source, target, path, patch, keyCompa
     }
   }
 
-  return emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, getVersion, arrayKey, index);
+  return emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, getVersion, arrayKey, index, adaptiveText);
 }
 
-function tryLargeShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function tryLargeShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const sourceLength = source.length;
   const targetLength = target.length;
   const commonLength = sourceLength < targetLength ? sourceLength : targetLength;
@@ -4223,7 +4234,7 @@ function tryLargeShiftedArrayDiff(source, target, path, patch, keyCompare, getVe
     }
   }
 
-  return emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, getVersion, arrayKey, index);
+  return emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, getVersion, arrayKey, index, adaptiveText);
 }
 
 function hasShiftedPrimitiveSignal(source, target, sourceStart, targetStart, length) {
@@ -4260,7 +4271,7 @@ function hasShiftedSignal(source, target, sourceStart, targetStart, length) {
   );
 }
 
-function tryShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function tryShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const sourceLength = source.length;
   const targetLength = target.length;
   const commonLength = sourceLength < targetLength ? sourceLength : targetLength;
@@ -4271,10 +4282,10 @@ function tryShiftedArrayDiff(source, target, path, patch, keyCompare, getVersion
   }
 
   if (index === commonLength) return false;
-  return emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, getVersion, arrayKey, index);
+  return emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, getVersion, arrayKey, index, adaptiveText);
 }
 
-function emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, getVersion, arrayKey, index) {
+function emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, getVersion, arrayKey, index, adaptiveText) {
   const sourceLength = source.length;
   const targetLength = target.length;
   const delta = targetLength - sourceLength;
@@ -4293,7 +4304,7 @@ function emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, 
       if (sameShiftProbe(sourceValue, targetValue)) continue;
 
       path[depth] = targetIndex;
-      walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+      walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
       path.length = depth;
     }
     return true;
@@ -4310,7 +4321,7 @@ function emitShiftedArrayDiffFromIndex(source, target, path, patch, keyCompare, 
     if (sameShiftProbe(sourceValue, targetValue)) continue;
 
     path[depth] = targetIndex;
-    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     path.length = depth;
   }
   return true;
@@ -4361,7 +4372,7 @@ function tryTailArraySpliceDiff(source, target, path, patch) {
   return true;
 }
 
-function tryBalancedRecordShiftDiff(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function tryBalancedRecordShiftDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const length = source.length;
   if (length < 64 || length > 2048) return false;
 
@@ -4402,16 +4413,16 @@ function tryBalancedRecordShiftDiff(source, target, path, patch, keyCompare, get
   if (deleteIndex >= length - 1 || targetIndex >= length) return false;
   if (!sameShiftProbe(source[deleteIndex + 1], target[targetIndex])) return false;
 
-  diffAlignedArrayRange(source, target, 0, insertIndex, path, patch, keyCompare, getVersion, arrayKey);
+  diffAlignedArrayRange(source, target, 0, insertIndex, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
 
   patch[patch.length] = [OP_ARRAY_SPLICE, path.slice(), insertIndex, 0, [target[insertIndex]]];
   patch[patch.length] = [OP_ARRAY_SPLICE, path.slice(), deleteIndex + 1, 1, []];
 
-  diffAlignedArrayRange(source, target, deleteIndex + 1, length, path, patch, keyCompare, getVersion, arrayKey);
+  diffAlignedArrayRange(source, target, deleteIndex + 1, length, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
   return true;
 }
 
-function diffAlignedArrayRange(source, target, start, end, path, patch, keyCompare, getVersion, arrayKey) {
+function diffAlignedArrayRange(source, target, start, end, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const depth = path.length;
   for (let i = start; i < end; i++) {
     const sourceValue = source[i];
@@ -4427,7 +4438,7 @@ function diffAlignedArrayRange(source, target, start, end, path, patch, keyCompa
     }
 
     path[depth] = i;
-    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     path.length = depth;
   }
 }
@@ -5492,7 +5503,7 @@ function isJsonScalarForReplaceRun(value) {
   return value === null || type === 'string' || type === 'number' || type === 'boolean';
 }
 
-function tryTwoKeyRecordArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function tryTwoKeyRecordArrayDiff(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const shape = findTwoKeyRecordShape(source, target);
   if (shape === null) return false;
 
@@ -5547,7 +5558,7 @@ function tryTwoKeyRecordArrayDiff(source, target, path, patch, keyCompare, getVe
     }
 
     path[depth] = i;
-    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+    walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     path.length = depth;
   }
 
@@ -5809,7 +5820,7 @@ function shouldUseSparseArrayDiff(source, target, commonLength) {
   return false;
 }
 
-function diffSparseArrays(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function diffSparseArrays(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const sourceLength = source.length;
   const targetLength = target.length;
   const sourceKeys = Object.keys(source);
@@ -5838,7 +5849,7 @@ function diffSparseArrays(source, target, path, patch, keyCompare, getVersion, a
       }
 
       path[depth] = index;
-      walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+      walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     } else {
       path[depth] = index;
       emitSet(patch, path, target[key]);
@@ -5851,7 +5862,7 @@ function diffSparseArrays(source, target, path, patch, keyCompare, getVersion, a
   }
 }
 
-function diffObjects(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function diffObjects(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   if (shouldReplaceObjectWithCollapsedArray(source, target)) {
     emitSet(patch, path, target);
     return;
@@ -5862,7 +5873,7 @@ function diffObjects(source, target, path, patch, keyCompare, getVersion, arrayK
     countOwnKeysUntil(source, SMALL_OBJECT_KEY_LIMIT + 1) <= SMALL_OBJECT_KEY_LIMIT &&
     countOwnKeysUntil(target, SMALL_OBJECT_KEY_LIMIT + 1) <= SMALL_OBJECT_KEY_LIMIT
   ) {
-    diffSmallObjects(source, target, path, patch, keyCompare, getVersion, arrayKey);
+    diffSmallObjects(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     return;
   }
 
@@ -5887,7 +5898,7 @@ function diffObjects(source, target, path, patch, keyCompare, getVersion, arrayK
     sourceLength === targetLength &&
     sourceLength >= 32 &&
     sourceKeys[0] === targetKeys[0] &&
-    diffMostlyAlignedObjects(source, target, sourceKeys, targetKeys, path, patch, keyCompare, getVersion, arrayKey)
+    diffMostlyAlignedObjects(source, target, sourceKeys, targetKeys, path, patch, keyCompare, getVersion, arrayKey, adaptiveText)
   ) {
     return;
   }
@@ -5899,7 +5910,7 @@ function diffObjects(source, target, path, patch, keyCompare, getVersion, arrayK
     sourceKeys[sourceLength - 1] === targetKeys[targetLength - 1] &&
     sameKeys(sourceKeys, targetKeys)
   ) {
-    diffSameKeyObjects(source, target, targetKeys, path, patch, keyCompare, getVersion, arrayKey);
+    diffSameKeyObjects(source, target, targetKeys, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     return;
   }
 
@@ -5938,7 +5949,7 @@ function diffObjects(source, target, path, patch, keyCompare, getVersion, arrayK
         continue;
       } else {
         path[depth] = key;
-        walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+        walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
       }
     } else {
       if (assign === null) assign = createAssignBuilder();
@@ -5950,7 +5961,7 @@ function diffObjects(source, target, path, patch, keyCompare, getVersion, arrayK
   if (assign !== null) flushAssign(patch, path, depth, assign);
 }
 
-function diffMostlyAlignedObjects(source, target, sourceKeys, targetKeys, path, patch, keyCompare, getVersion, arrayKey) {
+function diffMostlyAlignedObjects(source, target, sourceKeys, targetKeys, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const patchStart = patch.length;
   const depth = path.length;
   const length = sourceKeys.length;
@@ -6006,7 +6017,7 @@ function diffMostlyAlignedObjects(source, target, sourceKeys, targetKeys, path, 
         continue;
       } else {
         path[depth] = sourceKey;
-        walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+        walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
       }
       path.length = depth;
       sourceIndex++;
@@ -6036,7 +6047,7 @@ function diffMostlyAlignedObjects(source, target, sourceKeys, targetKeys, path, 
   return true;
 }
 
-function diffSmallObjects(source, target, path, patch, keyCompare, getVersion, arrayKey) {
+function diffSmallObjects(source, target, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const depth = path.length;
 
   for (const key in source) {
@@ -6075,7 +6086,7 @@ function diffSmallObjects(source, target, path, patch, keyCompare, getVersion, a
         continue;
       } else {
         path[depth] = key;
-        walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+        walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
       }
     } else {
       if (assign === null) assign = createAssignBuilder();
@@ -6168,7 +6179,7 @@ function sameKeys(sourceKeys, targetKeys) {
   return true;
 }
 
-function diffSameKeyObjects(source, target, keys, path, patch, keyCompare, getVersion, arrayKey) {
+function diffSameKeyObjects(source, target, keys, path, patch, keyCompare, getVersion, arrayKey, adaptiveText) {
   const depth = path.length;
   let assign = null;
 
@@ -6195,7 +6206,7 @@ function diffSameKeyObjects(source, target, keys, path, patch, keyCompare, getVe
       continue;
     } else {
       path[depth] = key;
-      walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey);
+      walk(sourceValue, targetValue, path, patch, keyCompare, getVersion, arrayKey, adaptiveText);
     }
     path.length = depth;
   }
@@ -6267,7 +6278,7 @@ function shouldUseStringSplice(source, target) {
   return source.length >= 32 || target.length >= 32;
 }
 
-function emitStringSplice(patch, path, source, target) {
+function emitStringSplice(patch, path, source, target, adaptiveText) {
   const sourceLength = source.length;
   const targetLength = target.length;
 
@@ -6355,6 +6366,8 @@ function emitStringSplice(patch, path, source, target) {
     return;
   }
 
+  if (adaptiveText && tryAlignString(patch, path, source, target, start, sourceEnd, targetEnd)) return;
+
   const insert = target.slice(start, targetEnd);
   if (tryEmitStringCopyPrefix(patch, path, source, start, sourceEnd - start, insert, 1)) return;
   if (tryEmitStringCopySuffix(patch, path, source, start, sourceEnd - start, insert, 0)) return;
@@ -6421,10 +6434,14 @@ function emitStringInsert(patch, path, source, start, insert) {
 function tryEmitStringCopyPrefix(patch, path, source, start, deleteCount, insert, minSuffix) {
   if (insert.length < STRING_COPY_MIN + minSuffix) return false;
 
-  const probe = insert.slice(0, STRING_COPY_MIN);
+  // A successful copy leaves at most 128 literal characters. Search for the
+  // entire required prefix rather than extending every overlapping 64-unit hit.
+  const required = Math.max(STRING_COPY_MIN, insert.length - STRING_COPY_SPLIT_SUFFIX_MAX);
+  const probe = insert.slice(0, required);
+  let candidates = 0;
   let sourceStart = source.indexOf(probe);
-  while (sourceStart >= 0) {
-    let copyLength = STRING_COPY_MIN;
+  while (sourceStart >= 0 && candidates++ < STRING_COPY_CANDIDATE_MAX) {
+    let copyLength = required;
     while (
       copyLength < insert.length &&
       sourceStart + copyLength < source.length &&
@@ -6458,58 +6475,27 @@ function tryEmitStringCopySuffix(patch, path, source, start, deleteCount, insert
   if (start < STRING_COPY_MIN && deleteCount !== 0) return false;
 
   const maxPrefix = Math.min(STRING_COPY_SPLIT_PREFIX_MAX, insert.length - STRING_COPY_MIN);
+  let remaining = 4 * (source.length + insert.length);
+  let candidates = 0;
   for (let prefixLength = minPrefix; prefixLength <= maxPrefix; prefixLength++) {
     const probe = insert.slice(prefixLength, prefixLength + STRING_COPY_MIN);
+    const copyLength = insert.length - prefixLength;
     let sourceStart = source.indexOf(probe);
-
-    while (sourceStart >= 0 && sourceStart + STRING_COPY_MIN <= start) {
-      let copyLength = STRING_COPY_MIN;
-      while (
-        prefixLength + copyLength < insert.length &&
-        sourceStart + copyLength < source.length &&
-        source.charCodeAt(sourceStart + copyLength) === insert.charCodeAt(prefixLength + copyLength)
-      ) {
-        copyLength++;
+    while (sourceStart >= 0) {
+      if (++candidates > STRING_COPY_CANDIDATE_MAX) return false;
+      const beforeEdit = sourceStart + STRING_COPY_MIN <= start;
+      if (!beforeEdit && (deleteCount !== 0 || prefixLength === 0)) break;
+      if (sourceStart + copyLength <= source.length) {
+        // Bound total verified substring length across overlapping candidates.
+        // Short probes keep unrelated inputs cheap; native equality avoids a
+        // character-by-character extension of every long candidate.
+        remaining -= copyLength;
+        if (remaining < 0) return false;
+        if (source.slice(sourceStart, sourceStart + copyLength) === insert.slice(prefixLength)) {
+          return emitStringCopySuffixPatch(patch, path, start, deleteCount, insert, prefixLength, sourceStart, copyLength);
+        }
       }
-
-      if (prefixLength + copyLength === insert.length) {
-        return emitStringCopySuffixPatch(patch, path, start, deleteCount, insert, prefixLength, sourceStart, copyLength);
-      }
-
       sourceStart = source.indexOf(probe, sourceStart + 1);
-    }
-
-    if (deleteCount === 0 && prefixLength !== 0) {
-      while (sourceStart >= 0) {
-        let copyLength = STRING_COPY_MIN;
-        while (
-          prefixLength + copyLength < insert.length &&
-          sourceStart + copyLength < source.length &&
-          source.charCodeAt(sourceStart + copyLength) === insert.charCodeAt(prefixLength + copyLength)
-        ) {
-          copyLength++;
-        }
-
-        if (prefixLength + copyLength === insert.length) {
-          patch[patch.length] = [
-            OP_STRING_COPY,
-            path.slice(),
-            start,
-            sourceStart,
-            copyLength
-          ];
-          patch[patch.length] = [
-            OP_STRING_SPLICE,
-            path.slice(),
-            start,
-            0,
-            insert.slice(0, prefixLength)
-          ];
-          return true;
-        }
-
-        sourceStart = source.indexOf(probe, sourceStart + 1);
-      }
     }
   }
 
@@ -6517,45 +6503,17 @@ function tryEmitStringCopySuffix(patch, path, source, start, deleteCount, insert
 }
 
 function emitStringCopySuffixPatch(patch, path, start, deleteCount, insert, prefixLength, sourceStart, copyLength) {
-  if (deleteCount === 0 && sourceStart + STRING_COPY_MIN > start) {
-    patch[patch.length] = [
-      OP_STRING_COPY,
-      path.slice(),
-      start,
-      sourceStart,
-      copyLength
-    ];
-    if (prefixLength !== 0) {
-      patch[patch.length] = [
-        OP_STRING_SPLICE,
-        path.slice(),
-        start,
-        0,
-        insert.slice(0, prefixLength)
-      ];
-    }
-    return true;
-  }
-
-  if (sourceStart + STRING_COPY_MIN > start) return false;
-
-  const opPath = path.slice();
+  // Snapshot the copied range before changing the string. It can overlap the
+  // replaced span even when its first 64 characters are before `start`.
+  // Inserting after the deleted span lets the following splice shift the copy
+  // into place without changing its contents or requiring a third operation.
+  patch[patch.length] = [OP_STRING_COPY, path.slice(), start + deleteCount, sourceStart, copyLength];
   if (deleteCount !== 0 || prefixLength !== 0) {
     patch[patch.length] = [
-      OP_STRING_SPLICE,
-      opPath,
-      start,
-      deleteCount,
+      OP_STRING_SPLICE, path.slice(), start, deleteCount,
       prefixLength === 0 ? '' : insert.slice(0, prefixLength)
     ];
   }
-  patch[patch.length] = [
-    OP_STRING_COPY,
-    prefixLength === 0 ? opPath : path.slice(),
-    start + prefixLength,
-    sourceStart,
-    copyLength
-  ];
   return true;
 }
 

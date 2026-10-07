@@ -133,3 +133,7 @@ void registryValidation;
 void registryTrace;
 void registryExplain;
 void registryMerged;
+
+const adaptiveTextOptions: DiffOptions = { textDiff: "adaptive" };
+const adaptiveTextPatch: Patch = diff("before", "after", adaptiveTextOptions);
+void adaptiveTextPatch;
